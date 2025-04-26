@@ -4,11 +4,10 @@
 #include <vector>
 
 enum PlayerState {
-    MOVING_RIGHT,
-    MOVING_LEFT,
-    ATTACKING,
-    DEAD,
-    IDLE
+    IDLE,      // Đứng yên - hàng 1
+    MOVING,    // Di chuyển - hàng 2
+    ATTACKING, // Chém - hàng 3
+    DEAD       // Chết - hàng 5
 };
 
 class Player {

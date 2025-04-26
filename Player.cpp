@@ -10,10 +10,10 @@ Player::Player(SDL_Renderer* renderer) {
     mVelX = 0;
     mVelY = 0;
     
-    mCurrentState = IDLE;
+    mCurrentState = IDLE;  // Trạng thái ban đầu là đứng yên
     mCurrentFrame = 0;
-    mFrameCount = 6;
-    mFrameDelay = 8;
+    mFrameCount = 6;      // 6 frame mỗi trạng thái
+    mFrameDelay = 5;      // Đã giảm xuống để animation chạy nhanh hơn
     mFrameTimer = 0;
     
     mWidth = 0;  // Sẽ được cập nhật sau khi tải sprite sheet
@@ -72,20 +72,25 @@ void Player::handleEvent(SDL_Event& e) {
         switch (e.key.keysym.sym) {
             case SDLK_w:
                 mVelY = -2;
+                setState(MOVING);
                 break;
             case SDLK_s:
                 mVelY = 2;
+                setState(MOVING);
                 break;
             case SDLK_a:
                 mVelX = -2;
-                setState(MOVING_LEFT);
+                setState(MOVING);
                 break;
             case SDLK_d:
                 mVelX = 2;
-                setState(MOVING_RIGHT);
+                setState(MOVING);
                 break;
             case SDLK_SPACE:
                 setState(ATTACKING);
+                break;
+            case SDLK_RETURN:  // Phím Enter để kích hoạt trạng thái chết
+                setState(DEAD);
                 break;
         }
     }
@@ -93,64 +98,77 @@ void Player::handleEvent(SDL_Event& e) {
         switch (e.key.keysym.sym) {
             case SDLK_w:
                 mVelY = 0;
+                if (mVelX == 0) setState(IDLE);
                 break;
             case SDLK_s:
                 mVelY = 0;
+                if (mVelX == 0) setState(IDLE);
                 break;
             case SDLK_a:
                 mVelX = 0;
-                if (mCurrentState == MOVING_LEFT)
-                    setState(IDLE);
+                if (mVelY == 0) setState(IDLE);
                 break;
             case SDLK_d:
                 mVelX = 0;
-                if (mCurrentState == MOVING_RIGHT)
-                    setState(IDLE);
+                if (mVelY == 0) setState(IDLE);
                 break;
         }
     }
 }
 
 void Player::update() {
+    // Cập nhật vị trí
     mPosX += mVelX;
     mPosY += mVelY;
     
+    // Cập nhật frame animation
     mFrameTimer++;
     if (mFrameTimer >= mFrameDelay) {
         mFrameTimer = 0;
-        mCurrentFrame = (mCurrentFrame + 1) % mFrameCount;
-    }
-    
-    if (mCurrentState == ATTACKING) {
-        if (mCurrentFrame >= mFrameCount - 1) {
-            setState(IDLE);
+        
+        // Xử lý số frame khác nhau cho mỗi trạng thái
+        int maxFrames = 6; // Mặc định là 6 frame
+        
+        if (mCurrentState == ATTACKING) {
+            maxFrames = 4; // Trạng thái chém chỉ có 4 frame
+        } else if (mCurrentState == DEAD) {
+            maxFrames = 3; // Trạng thái chết chỉ có 3 frame
+        }
+        
+        mCurrentFrame = (mCurrentFrame + 1) % maxFrames;
+        
+        // Kiểm tra hoàn thành animation
+        if (mCurrentState == ATTACKING && mCurrentFrame >= 3) {
+            setState(IDLE); // Chuyển về trạng thái đứng yên sau khi hoàn thành 4 frame
         }
     }
+    
+    // Trạng thái chết không tự động chuyển về đứng yên, cần người chơi tác động
 }
 
 void Player::render(int camX, int camY) {
     int row = 0;
     
     switch (mCurrentState) {
-        case MOVING_RIGHT:
+        case IDLE:        // Đứng yên - hàng 1 (index 0)
             row = 0;
             break;
-        case MOVING_LEFT:
+        case MOVING:      // Di chuyển - hàng 2 (index 1)
             row = 1;
             break;
-        case ATTACKING:
+        case ATTACKING:   // Chém - hàng 3 (index 2)
             row = 2;
+            // Giới hạn frame của trạng thái chém
+            if (mCurrentFrame > 3) mCurrentFrame = 0;
             break;
-        case DEAD:
+        case DEAD:        // Chết - hàng 5 (index 4)
             row = 4;
-            break;
-        case IDLE:
-            row = 0;
-            mCurrentFrame = 0;
+            // Giới hạn frame của trạng thái chết
+            if (mCurrentFrame > 2) mCurrentFrame = 0;
             break;
     }
     
-    int index = row * mFrameCount + mCurrentFrame;
+    int index = row * 6 + mCurrentFrame; // Luôn có 6 cột trong sprite sheet
     if (index >= 0 && index < (int)mClips.size()) {
         SDL_Rect* currentClip = &mClips[index];
         
