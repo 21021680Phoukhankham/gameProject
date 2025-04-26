@@ -11,6 +11,7 @@ Player::Player(SDL_Renderer* renderer) {
     mVelY = 0;
     
     mCurrentState = IDLE;  // Trạng thái ban đầu là đứng yên
+    mDirection = RIGHT;    // Hướng mặc định là phải
     mCurrentFrame = 0;
     mFrameCount = 6;      // 6 frame mỗi trạng thái
     mFrameDelay = 5;      // Đã giảm xuống để animation chạy nhanh hơn
@@ -68,6 +69,19 @@ bool Player::loadMedia(std::string path) {
 }
 
 void Player::handleEvent(SDL_Event& e) {
+    // Xử lý phím R để hồi sinh
+    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r) {
+        if (mCurrentState == DEAD) {
+            forceSetState(IDLE);  // Dùng phương thức mới để bỏ qua kiểm tra
+            return;
+        }
+    }
+    
+    // Nếu đang trong trạng thái chết và đã ở frame cuối, không xử lý input khác
+    if (mCurrentState == DEAD && mCurrentFrame == 2) {
+        return;
+    }
+    
     if (e.type == SDL_KEYDOWN && e.key.repeat == 0) {
         switch (e.key.keysym.sym) {
             case SDLK_w:
@@ -84,11 +98,13 @@ void Player::handleEvent(SDL_Event& e) {
             case SDLK_LEFT:
                 mVelX = -2;
                 setState(MOVING);
+                setDirection(LEFT); // Đặt hướng quay trái
                 break;
             case SDLK_d:
             case SDLK_RIGHT:
                 mVelX = 2;
                 setState(MOVING);
+                setDirection(RIGHT); // Đặt hướng quay phải
                 break;
             case SDLK_SPACE:
                 setState(ATTACKING);
@@ -139,40 +155,45 @@ void Player::update() {
         
         if (mCurrentState == ATTACKING) {
             maxFrames = 4; // Trạng thái chém chỉ có 4 frame
-        } else if (mCurrentState == DEAD) {
+            
+            // Cập nhật frame cho trạng thái tấn công
+            if (mCurrentFrame < maxFrames - 1) {
+                mCurrentFrame++;
+            } else {
+                setState(IDLE); // Chuyển về trạng thái đứng yên sau khi hoàn thành 4 frame
+            }
+        } 
+        else if (mCurrentState == DEAD) {
             maxFrames = 3; // Trạng thái chết chỉ có 3 frame
+            
+            // Cập nhật frame cho trạng thái chết, dừng ở frame cuối cùng
+            if (mCurrentFrame < maxFrames - 1) {
+                mCurrentFrame++;
+            }
+            // Không tăng frame nữa sau khi đạt frame cuối
         }
-        
-        mCurrentFrame = (mCurrentFrame + 1) % maxFrames;
-        
-        // Kiểm tra hoàn thành animation
-        if (mCurrentState == ATTACKING && mCurrentFrame >= 3) {
-            setState(IDLE); // Chuyển về trạng thái đứng yên sau khi hoàn thành 4 frame
+        else {
+            // Các trạng thái khác lặp lại bình thường
+            mCurrentFrame = (mCurrentFrame + 1) % maxFrames;
         }
     }
-    
-    // Trạng thái chết không tự động chuyển về đứng yên, cần người chơi tác động
 }
 
 void Player::render(int camX, int camY) {
     int row = 0;
     
     switch (mCurrentState) {
-        case IDLE:        // Đứng yên - hàng 1 (index 0)
-            row = 0;
+        case IDLE:
+            row = 0; // Hàng 1
             break;
-        case MOVING:      // Di chuyển - hàng 2 (index 1)
-            row = 1;
+        case MOVING:
+            row = 1; // Hàng 2
             break;
-        case ATTACKING:   // Chém - hàng 3 (index 2)
-            row = 2;
-            // Giới hạn frame của trạng thái chém
-            if (mCurrentFrame > 3) mCurrentFrame = 0;
+        case ATTACKING:
+            row = 2; // Hàng 3
             break;
-        case DEAD:        // Chết - hàng 5 (index 4)
-            row = 4;
-            // Giới hạn frame của trạng thái chết
-            if (mCurrentFrame > 2) mCurrentFrame = 0;
+        case DEAD:
+            row = 4; // Hàng 5
             break;
     }
     
@@ -191,12 +212,24 @@ void Player::render(int camX, int camY) {
         // Tạo vùng hiển thị
         SDL_Rect renderQuad = {renderX, renderY, renderWidth, renderHeight};
         
-        // Render texture
-        SDL_RenderCopy(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad);
+        // Render texture dựa vào hướng
+        if (mDirection == RIGHT) {
+            // Render bình thường nếu nhìn sang phải
+            SDL_RenderCopy(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad);
+        } else {
+            // Lật ngang nếu nhìn sang trái
+            SDL_RenderCopyEx(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad, 
+                             0, NULL, SDL_FLIP_HORIZONTAL);
+        }
     }
 }
 
 void Player::setState(PlayerState state) {
+    // Nếu đang ở trạng thái chết và đã ở frame cuối, không chuyển đổi trạng thái
+    if (mCurrentState == DEAD && mCurrentFrame == 2 && state != DEAD) {
+        return;
+    }
+    
     if (mCurrentState != state) {
         mCurrentState = state;
         mCurrentFrame = 0;
@@ -204,8 +237,25 @@ void Player::setState(PlayerState state) {
     }
 }
 
+// Thêm phương thức mới để bỏ qua kiểm tra khi hồi sinh
+void Player::forceSetState(PlayerState state) {
+    mCurrentState = state;
+    mCurrentFrame = 0;
+    mFrameTimer = 0;
+    mVelX = 0;
+    mVelY = 0;
+}
+
 PlayerState Player::getState() {
     return mCurrentState;
+}
+
+void Player::setDirection(Direction dir) {
+    mDirection = dir;
+}
+
+Direction Player::getDirection() {
+    return mDirection;
 }
 
 int Player::getPosX() {

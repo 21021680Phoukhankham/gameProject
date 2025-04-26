@@ -9,7 +9,7 @@ Game::Game() {
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
-    mScale = 1.0f;
+    mScale = 2.0f;
     mCameraX = 0;
     mCameraY = 0;
 }
@@ -92,8 +92,13 @@ void Game::handleEvents() {
             mIsRunning = false;
         }
         
-        // Xử lý event cho người chơi (vẫn giữ để xử lý các phím đặc biệt như SPACE và RETURN)
+        // Xử lý event cho người chơi (bao gồm cả phím R để hồi sinh)
         mPlayer->handleEvent(e);
+    }
+    
+    // Nếu người chơi đã chết và ở frame cuối, không xử lý input di chuyển
+    if (mPlayer->getState() == DEAD && mPlayer->getDeathAnimationFinished()) {
+        return;
     }
     
     // Kiểm tra trạng thái phím hiện tại để cập nhật liên tục
@@ -120,11 +125,13 @@ void Game::handleEvents() {
     if (currentKeyStates[SDL_SCANCODE_A] || currentKeyStates[SDL_SCANCODE_LEFT]) {
         mPlayer->setVelocityX(-2);
         mPlayer->setState(MOVING);
+        mPlayer->setDirection(LEFT); // Đặt hướng quay trái
         velocityChanged = true;
     } 
     else if (currentKeyStates[SDL_SCANCODE_D] || currentKeyStates[SDL_SCANCODE_RIGHT]) {
         mPlayer->setVelocityX(2);
         mPlayer->setState(MOVING);
+        mPlayer->setDirection(RIGHT); // Đặt hướng quay phải
         velocityChanged = true;
     } 
     else {
@@ -142,6 +149,13 @@ void Game::handleEvents() {
     if (currentKeyStates[SDL_SCANCODE_RETURN]) {
         if (mPlayer->getState() != DEAD) {
             mPlayer->setState(DEAD);
+        }
+    }
+    
+    // Kiểm tra phím R cho hồi sinh (thêm ở đây để có thể phát hiện được phím nhấn liên tục)
+    if (currentKeyStates[SDL_SCANCODE_R]) {
+        if (mPlayer->getState() == DEAD) {
+            mPlayer->forceSetState(IDLE);
         }
     }
     
