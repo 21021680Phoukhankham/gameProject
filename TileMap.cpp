@@ -4,67 +4,57 @@
 
 TileMap::TileMap(SDL_Renderer* renderer) {
     mRenderer = renderer;
-    mTileWidth = 32;  // Giá trị mặc định có thể được thay đổi khi tải tile
-    mTileHeight = 32; // Giá trị mặc định có thể được thay đổi khi tải tile
+    mTileSheet = new Texture(renderer);
+    mTileWidth = 16;  // Kích thước tile là 16x16
+    mTileHeight = 16;
     mMapWidth = 0;
     mMapHeight = 0;
 }
 
 TileMap::~TileMap() {
-    for (size_t i = 0; i < mTileTextures.size(); i++) {
-        if (mTileTextures[i] != nullptr) {
-            delete mTileTextures[i];
-            mTileTextures[i] = nullptr;
-        }
+    if (mTileSheet != nullptr) {
+        delete mTileSheet;
+        mTileSheet = nullptr;
     }
-    mTileTextures.clear();
+    mTileClips.clear();
 }
 
-bool TileMap::loadTiles(std::string basePath) {
-    // Giải phóng các textures cũ nếu có
-    for (size_t i = 0; i < mTileTextures.size(); i++) {
-        if (mTileTextures[i] != nullptr) {
-            delete mTileTextures[i];
-            mTileTextures[i] = nullptr;
-        }
+bool TileMap::loadTileSheet(std::string path) {
+    // Tải texture
+    if (!mTileSheet->loadFromFile(path)) {
+        std::cout << "Không thể tải tileset: " << path << std::endl;
+        return false;
     }
-    mTileTextures.clear();
     
-    // Đặt giá trị mặc định để đảm bảo có tile 0
-    Texture* defaultTexture = new Texture(mRenderer);
-    mTileTextures.push_back(defaultTexture);
+    // Xóa các clip cũ nếu có
+    mTileClips.clear();
     
-    // Tải các tiles từ 1-100 (hoặc cho đến khi không còn file)
-    int tileCount = 1; // Bắt đầu từ 1 vì đã có tile 0 mặc định
-    for (int i = 1; i <= 100; i++) {
-        std::string filePath = basePath + std::to_string(i) + ".png";
-        
-        // Kiểm tra xem file có tồn tại không (phương pháp nguyên thủy)
-        FILE* file = fopen(filePath.c_str(), "r");
-        if (file) {
-            fclose(file);
+    // Lấy kích thước của tileset
+    int tileSheetWidth = mTileSheet->getWidth();
+    int tileSheetHeight = mTileSheet->getHeight();
+    
+    // Tính số lượng tile theo chiều ngang và dọc
+    int numTilesX = tileSheetWidth / mTileWidth;
+    int numTilesY = tileSheetHeight / mTileHeight;
+    
+    // Tạo các clip cho từng tile
+    int tileIndex = 0;
+    for (int y = 0; y < numTilesY; y++) {
+        for (int x = 0; x < numTilesX; x++) {
+            SDL_Rect clip = {
+                x * mTileWidth,
+                y * mTileHeight,
+                mTileWidth,
+                mTileHeight
+            };
             
-            Texture* texture = new Texture(mRenderer);
-            if (texture->loadFromFile(filePath)) {
-                mTileTextures.push_back(texture);
-                tileCount++;
-                
-                // Cập nhật kích thước tile dựa trên kích thước của texture đầu tiên
-                if (tileCount == 2) {
-                    mTileWidth = texture->getWidth();
-                    mTileHeight = texture->getHeight();
-                }
-            } else {
-                delete texture;
-            }
-        } else {
-            // Không tìm thấy file, thoát khỏi vòng lặp
-            break;
+            mTileClips.push_back(clip);
+            tileIndex++;
         }
     }
     
-    std::cout << "Đã tải " << tileCount << " tiles." << std::endl;
-    return tileCount > 0;
+    std::cout << "Đã tải " << tileIndex << " tiles từ spritesheet." << std::endl;
+    return true;
 }
 
 bool TileMap::loadMap(std::string path) {
@@ -109,13 +99,13 @@ void TileMap::render(SDL_Rect* camera) {
                 int tileType = mMap[y][x];
                 
                 // Chỉ render tile hợp lệ
-                if (tileType >= 0 && tileType < (int)mTileTextures.size() && mTileTextures[tileType] != nullptr) {
+                if (tileType >= 0 && tileType < (int)mTileClips.size()) {
                     // Xác định vị trí chính xác để vẽ tile
                     int renderX = x * mTileWidth;
                     int renderY = y * mTileHeight;
                     
-                    // Render tile
-                    mTileTextures[tileType]->render(renderX, renderY);
+                    // Render tile từ spritesheet
+                    mTileSheet->render(renderX, renderY, &mTileClips[tileType]);
                 }
             }
         }
@@ -140,13 +130,13 @@ void TileMap::render(SDL_Rect* camera) {
                 int tileType = mMap[y][x];
                 
                 // Chỉ render tile hợp lệ
-                if (tileType >= 0 && tileType < (int)mTileTextures.size() && mTileTextures[tileType] != nullptr) {
+                if (tileType >= 0 && tileType < (int)mTileClips.size()) {
                     // Xác định vị trí chính xác để vẽ tile
                     int renderX = x * mTileWidth - camera->x;
                     int renderY = y * mTileHeight - camera->y;
                     
-                    // Render tile
-                    mTileTextures[tileType]->render(renderX, renderY);
+                    // Render tile từ spritesheet
+                    mTileSheet->render(renderX, renderY, &mTileClips[tileType]);
                 }
             }
         }

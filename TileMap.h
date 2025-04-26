@@ -9,7 +9,8 @@
 class TileMap {
 private:
     std::vector<std::vector<int>> mMap;
-    std::vector<Texture*> mTileTextures;
+    std::vector<SDL_Rect> mTileClips;
+    Texture* mTileSheet;
     SDL_Renderer* mRenderer;
     
     int mTileWidth;
@@ -21,7 +22,7 @@ public:
     TileMap(SDL_Renderer* renderer);
     ~TileMap();
     
-    bool loadTiles(std::string basePath);
+    bool loadTileSheet(std::string path);
     bool loadMap(std::string path);
     void render(SDL_Rect* camera = nullptr);
     

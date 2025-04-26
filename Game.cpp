@@ -8,7 +8,7 @@ Game::Game() {
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
-    mScale = 1.5f;  // Phóng to mặc định 1.5 lần
+    mScale = 2.0f;  // Phóng to mặc định 3.0 lần vì tile size là 16x16
     mCameraX = 0;
     mCameraY = 0;
 }
@@ -57,14 +57,14 @@ bool Game::init() {
 }
 
 bool Game::loadMedia() {
-    // Tải các tile từ thư mục map/Map1/images/map_
-    if (!mTileMap->loadTiles("map\\Map1\\images\\map_")) {
-        std::cout << "Không thể tải tiles!" << std::endl;
+    // Tải tileset
+    if (!mTileMap->loadTileSheet("map\\Map2\\map.png")) {
+        std::cout << "Không thể tải tileset!" << std::endl;
         return false;
     }
     
     // Tải map
-    if (!mTileMap->loadMap("map\\Map1\\map1.txt")) {
+    if (!mTileMap->loadMap("map\\Map2\\map1.txt")) {
         std::cout << "Không thể tải map!" << std::endl;
         return false;
     }
