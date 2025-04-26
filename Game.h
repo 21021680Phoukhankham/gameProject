@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "CollisionMap.h"
 #include "OverlayMap.h"
+#include "MonsterManager.h"  // Thêm include MonsterManager
 
 class Game {
 private:
@@ -23,8 +24,9 @@ private:
     
     TileMap* mTileMap;
     CollisionMap* mCollisionMap;
-    OverlayMap* mOverlayMap;  // Thêm OverlayMap
+    OverlayMap* mOverlayMap;
     Player* mPlayer;
+    MonsterManager* mMonsterManager;  // Thêm biến MonsterManager
 
 public:
     Game();

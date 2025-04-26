@@ -6,8 +6,9 @@ Game::Game() {
     mRenderer = nullptr;
     mTileMap = nullptr;
     mCollisionMap = nullptr;
-    mOverlayMap = nullptr;  // Khởi tạo OverlayMap
+    mOverlayMap = nullptr;  
     mPlayer = nullptr;
+    mMonsterManager = nullptr;  // Khởi tạo biến MonsterManager
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
@@ -56,8 +57,9 @@ bool Game::init() {
 
     mTileMap = new TileMap(mRenderer);
     mCollisionMap = new CollisionMap();
-    mOverlayMap = new OverlayMap(mRenderer);  // Khởi tạo OverlayMap
+    mOverlayMap = new OverlayMap(mRenderer);
     mPlayer = new Player(mRenderer);
+    mMonsterManager = new MonsterManager(mRenderer);  // Tạo đối tượng MonsterManager
     
     mIsRunning = true;
     return true;
@@ -90,6 +92,12 @@ bool Game::loadMedia() {
     
     if (!mOverlayMap->loadMap("map\\Map2\\map2.txt")) {
         std::cout << "Không thể tải overlay map!" << std::endl;
+        return false;
+    }
+    
+    // Tải monster map
+    if (!mMonsterManager->loadMonsterMap("map\\Map2\\monster.txt")) {
+        std::cout << "Không thể tải monster map!" << std::endl;
         return false;
     }
     
@@ -301,6 +309,51 @@ void Game::update() {
         }
     }
     
+    // Tạo hitbox người chơi để kiểm tra va chạm với quái vật
+    SDL_Rect playerHitbox = {
+        mPlayer->getPosX() + mPlayer->getHitboxOffsetX(),
+        mPlayer->getPosY() + mPlayer->getHitboxOffsetY(),
+        mPlayer->getHitboxWidth(),
+        mPlayer->getHitboxHeight()
+    };
+    
+    // Cập nhật trạng thái quái vật
+    mMonsterManager->update(playerHitbox);
+    
+    // Kiểm tra va chạm giữa người chơi và quái vật
+    if (mPlayer->getState() == ATTACKING) {
+        // Nếu người chơi đang tấn công, tạo hitbox tấn công lớn hơn
+        SDL_Rect attackHitbox;
+        
+        // Điều chỉnh hitbox tấn công theo hướng nhìn của người chơi
+        if (mPlayer->getDirection() == RIGHT) {
+            attackHitbox = {
+                mPlayer->getPosX() + mPlayer->getHitboxOffsetX(),
+                mPlayer->getPosY() + mPlayer->getHitboxOffsetY() - 5,
+                mPlayer->getHitboxWidth() + 20, // Mở rộng sang bên phải
+                mPlayer->getHitboxHeight() + 10
+            };
+        } else { // LEFT
+            attackHitbox = {
+                mPlayer->getPosX() + mPlayer->getHitboxOffsetX() - 20, // Mở rộng sang bên trái
+                mPlayer->getPosY() + mPlayer->getHitboxOffsetY() - 5,
+                mPlayer->getHitboxWidth() + 20,
+                mPlayer->getHitboxHeight() + 10
+            };
+        }
+        
+        // Kiểm tra va chạm tấn công với quái vật
+        mMonsterManager->checkAttackCollision(attackHitbox);
+    } else {
+        // Kiểm tra nếu người chơi bị quái vật tấn công
+        if (mMonsterManager->checkCollisionWithPlayer(playerHitbox)) {
+            // Nếu người chơi va chạm với quái vật và không đang tấn công, người chơi bị thương
+            if (mPlayer->getState() != DEAD) {
+                mPlayer->setState(DEAD);
+            }
+        }
+    }
+    
     // Cập nhật animation và trạng thái của người chơi
     mPlayer->update();
     
@@ -334,11 +387,14 @@ void Game::render() {
     // Vẽ map với camera
     mTileMap->render(&camera);
     
-    // Vẽ collision map lên trên cùng
+    // Vẽ collision map lên trên cùng (bỏ comment nếu muốn hiển thị collision map)
     mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
     
-    // Vẽ overlay map TRƯỚC khi vẽ người chơi để hiển thị bên dưới nhân vật
+    // Vẽ overlay map
     mOverlayMap->render(&camera);
+    
+    // Vẽ quái vật
+    mMonsterManager->render(mCameraX, mCameraY);
     
     // Vẽ người chơi
     mPlayer->render(mCameraX, mCameraY);
@@ -358,6 +414,11 @@ void Game::render() {
 }
 
 void Game::clean() {
+    if (mMonsterManager != nullptr) {
+        delete mMonsterManager;
+        mMonsterManager = nullptr;
+    }
+    
     if (mPlayer != nullptr) {
         delete mPlayer;
         mPlayer = nullptr;
