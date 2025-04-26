@@ -5,6 +5,7 @@
 #include "TileMap.h"
 #include "Player.h"
 #include "CollisionMap.h"
+#include "OverlayMap.h"
 
 class Game {
 private:
@@ -22,6 +23,7 @@ private:
     
     TileMap* mTileMap;
     CollisionMap* mCollisionMap;
+    OverlayMap* mOverlayMap;  // Thêm OverlayMap
     Player* mPlayer;
 
 public:

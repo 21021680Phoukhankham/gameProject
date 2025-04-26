@@ -6,6 +6,7 @@ Game::Game() {
     mRenderer = nullptr;
     mTileMap = nullptr;
     mCollisionMap = nullptr;
+    mOverlayMap = nullptr;  // Khởi tạo OverlayMap
     mPlayer = nullptr;
     mIsRunning = false;
     mScreenWidth = 1024;
@@ -55,6 +56,7 @@ bool Game::init() {
 
     mTileMap = new TileMap(mRenderer);
     mCollisionMap = new CollisionMap();
+    mOverlayMap = new OverlayMap(mRenderer);  // Khởi tạo OverlayMap
     mPlayer = new Player(mRenderer);
     
     mIsRunning = true;
@@ -77,6 +79,17 @@ bool Game::loadMedia() {
     // Tải collision map
     if (!mCollisionMap->loadCollisionMap("map\\Map2\\collision.txt")) {
         std::cout << "Không thể tải collision map!" << std::endl;
+        return false;
+    }
+    
+    // Tải overlay map
+    if (!mOverlayMap->loadTileSheet("map\\Map2\\map.png")) {
+        std::cout << "Không thể tải tileset cho overlay!" << std::endl;
+        return false;
+    }
+    
+    if (!mOverlayMap->loadMap("map\\Map2\\map2.txt")) {
+        std::cout << "Không thể tải overlay map!" << std::endl;
         return false;
     }
     
@@ -324,6 +337,9 @@ void Game::render() {
     // Vẽ collision map lên trên cùng
     mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
     
+    // Vẽ overlay map TRƯỚC khi vẽ người chơi để hiển thị bên dưới nhân vật
+    mOverlayMap->render(&camera);
+    
     // Vẽ người chơi
     mPlayer->render(mCameraX, mCameraY);
     
@@ -345,6 +361,11 @@ void Game::clean() {
     if (mPlayer != nullptr) {
         delete mPlayer;
         mPlayer = nullptr;
+    }
+    
+    if (mOverlayMap != nullptr) {
+        delete mOverlayMap;
+        mOverlayMap = nullptr;
     }
     
     if (mCollisionMap != nullptr) {
