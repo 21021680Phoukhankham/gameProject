@@ -85,10 +85,8 @@ bool Game::loadMedia() {
         return false;
     }
     
-    // Đặt vị trí ban đầu cho người chơi ở giữa map
-    int mapWidthPixels = mTileMap->getMapWidth() * mTileMap->getTileWidth();
-    int mapHeightPixels = mTileMap->getMapHeight() * mTileMap->getTileHeight();
-    mPlayer->setPosition(mapWidthPixels / 2, mapHeightPixels / 2);
+    // Đặt vị trí ban đầu cho người chơi tại tọa độ (100, 100)
+    mPlayer->setPosition(100, 100);
     
     return true;
 }
@@ -200,28 +198,16 @@ void Game::adjustCamera() {
 }
 
 bool Game::handlePlayerCollision(int nextX, int nextY) {
-    // Lấy kích thước của nhân vật
-    int playerWidth = mPlayer->getWidth();
-    int playerHeight = mPlayer->getHeight();
+    // Tạo SDL_Rect cho nhân vật tại vị trí mới
+    SDL_Rect playerRect = {
+        nextX,
+        nextY,
+        mPlayer->getWidth(),
+        mPlayer->getHeight()
+    };
     
-    // Tính các điểm kiểm tra va chạm (thu nhỏ vùng va chạm so với sprite)
-    int collisionMargin = 8; // Lề va chạm, có thể điều chỉnh nếu cần
-    
-    // Kiểm tra các góc và cạnh của hitbox người chơi
-    bool collisionTopLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + collisionMargin);
-    bool collisionTopRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + collisionMargin);
-    bool collisionBottomLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + playerHeight - collisionMargin);
-    bool collisionBottomRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + playerHeight - collisionMargin);
-    
-    // Thêm điểm kiểm tra ở giữa các cạnh để tránh "lọt" qua các tile khi di chuyển nhanh
-    bool collisionMidTop = mCollisionMap->checkCollision(nextX + playerWidth/2, nextY + collisionMargin);
-    bool collisionMidBottom = mCollisionMap->checkCollision(nextX + playerWidth/2, nextY + playerHeight - collisionMargin);
-    bool collisionMidLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + playerHeight/2);
-    bool collisionMidRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + playerHeight/2);
-    
-    // Nếu bất kỳ điểm nào có va chạm, trả về true
-    return collisionTopLeft || collisionTopRight || collisionBottomLeft || collisionBottomRight || 
-           collisionMidTop || collisionMidBottom || collisionMidLeft || collisionMidRight;
+    // Sử dụng phương thức kiểm tra va chạm mới
+    return mCollisionMap->checkObjectWithMap(playerRect);
 }
 
 void Game::update() {
@@ -234,31 +220,59 @@ void Game::update() {
     int currentX = mPlayer->getPosX();
     int currentY = mPlayer->getPosY();
     
+    // Debug: Kiểm tra vị trí hiện tại của nhân vật
+    int tileX = currentX / mTileMap->getTileWidth();
+    int tileY = currentY / mTileMap->getTileHeight();
+    if (tileX >= 0 && tileX < mCollisionMap->getMapWidth() && 
+        tileY >= 0 && tileY < mCollisionMap->getMapHeight()) {
+        // In ra tọa độ tile
+        std::cout << "Player at tile (" << tileX << "," << tileY << ")" << std::endl;
+    }
+    
     // Tính vị trí tiếp theo dựa trên vận tốc
     int nextX = currentX + mPlayer->getVelocityX();
     int nextY = currentY + mPlayer->getVelocityY();
     
-    // Kiểm tra va chạm theo hướng X và Y riêng biệt để cho phép trượt dọc theo tường
-    bool collisionX = false;
-    bool collisionY = false;
-    
-    // Kiểm tra va chạm theo hướng X
+    // Kiểm tra va chạm cho chuyển động theo hướng X
     if (mPlayer->getVelocityX() != 0) {
-        collisionX = handlePlayerCollision(nextX, currentY);
+        SDL_Rect nextPosX = {
+            nextX,
+            currentY,
+            mPlayer->getWidth() / 2, // Giảm kích thước hitbox xuống một nửa
+            mPlayer->getHeight() / 2
+        };
+        
+        // Căn chỉnh vị trí hitbox vào giữa nhân vật
+        nextPosX.x += mPlayer->getWidth() / 4;
+        nextPosX.y += mPlayer->getHeight() / 4;
+        
+        bool hasCollisionX = mCollisionMap->checkObjectWithMap(nextPosX);
+        
+        if (!hasCollisionX) {
+            // Không có va chạm theo hướng X
+            mPlayer->setPosition(nextX, currentY);
+        }
     }
     
-    // Kiểm tra va chạm theo hướng Y
+    // Kiểm tra va chạm cho chuyển động theo hướng Y
     if (mPlayer->getVelocityY() != 0) {
-        collisionY = handlePlayerCollision(currentX, nextY);
-    }
-    
-    // Cập nhật vị trí theo hướng không có va chạm
-    if (!collisionX) {
-        mPlayer->setPosition(nextX, mPlayer->getPosY());
-    }
-    
-    if (!collisionY) {
-        mPlayer->setPosition(mPlayer->getPosX(), nextY);
+        SDL_Rect nextPosY = {
+            mPlayer->getPosX(), // Cập nhật lại vị trí X mới nếu đã di chuyển
+            nextY,
+            mPlayer->getWidth() / 2, // Giảm kích thước hitbox xuống một nửa
+            mPlayer->getHeight() / 2
+        };
+        
+        // Căn chỉnh vị trí hitbox vào giữa nhân vật
+        nextPosY.x += mPlayer->getWidth() / 4;
+        nextPosY.y += mPlayer->getHeight() / 4;
+        
+        bool hasCollisionY = mCollisionMap->checkObjectWithMap(nextPosY);
+        
+        if (!hasCollisionY) {
+            // Không có va chạm theo hướng Y
+            mPlayer->setPosition(mPlayer->getPosX(), nextY);
+        }
     }
     
     // Cập nhật animation và trạng thái của người chơi
@@ -299,6 +313,16 @@ void Game::render() {
     
     // Vẽ người chơi
     mPlayer->render(mCameraX, mCameraY);
+    
+    // Vẽ hitbox của người chơi để debug (chỉ vẽ khi debug)
+    SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, 255); // Màu đỏ
+    SDL_Rect hitbox = {
+        mPlayer->getPosX() - mCameraX + mPlayer->getWidth()/4,
+        mPlayer->getPosY() - mCameraY + mPlayer->getHeight()/4,
+        mPlayer->getWidth()/2,
+        mPlayer->getHeight()/2
+    };
+    SDL_RenderDrawRect(mRenderer, &hitbox);
     
     // Cập nhật màn hình
     SDL_RenderPresent(mRenderer);

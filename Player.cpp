@@ -51,6 +51,7 @@ bool Player::loadMedia(std::string path) {
     
     std::cout << "Kich thuoc sprite sheet: " << sheetWidth << "x" << sheetHeight << std::endl;
     std::cout << "Kich thuoc moi frame: " << mWidth << "x" << mHeight << std::endl;
+    std::cout << "Kich thuoc render (x2): " << mWidth * 2 << "x" << mHeight * 2 << std::endl;
     
     // Tạo các clip cho từng frame trong sprite sheet
     for (int r = 0; r < rows; r++) {
@@ -141,9 +142,9 @@ void Player::handleEvent(SDL_Event& e) {
 }
 
 void Player::update() {
-    // Cập nhật vị trí
-    mPosX += mVelX;
-    mPosY += mVelY;
+    // Không tự cập nhật vị trí, đã được xử lý trong Game::update
+    // mPosX += mVelX;
+    // mPosY += mVelY;
     
     // Cập nhật frame animation
     mFrameTimer++;

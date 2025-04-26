@@ -55,11 +55,50 @@ bool CollisionMap::checkCollision(int x, int y) {
     
     // Kiểm tra giới hạn map
     if (tileX < 0 || tileX >= mMapWidth || tileY < 0 || tileY >= mMapHeight) {
-        return false;
+        return true; // Xử lý như ô có va chạm để ngăn người chơi ra ngoài biên
     }
     
-    // Giá trị khác 0 thường đại diện cho ô có va chạm
+    // Giá trị khác 0 đại diện cho ô có va chạm
     return mCollisionData[tileY][tileX] != 0;
+}
+
+// Thêm hàm kiểm tra va chạm giữa hai đối tượng
+bool CollisionMap::checkObjectCollision(SDL_Rect a, SDL_Rect b) {
+    // Kiểm tra va chạm giữa hai đối tượng dựa trên bounding box
+    return (a.x < b.x + b.w && 
+            a.x + a.w > b.x && 
+            a.y < b.y + b.h && 
+            a.y + a.h > b.y);
+}
+
+// Kiểm tra va chạm giữa đối tượng và collision map
+bool CollisionMap::checkObjectWithMap(SDL_Rect object) {
+    // Tính toán các tile mà đối tượng trùng lặp
+    int startTileX = object.x / mTileWidth;
+    int startTileY = object.y / mTileHeight;
+    int endTileX = (object.x + object.w - 1) / mTileWidth;
+    int endTileY = (object.y + object.h - 1) / mTileHeight;
+    
+    // Kiểm tra giới hạn map
+    if (startTileX < 0) startTileX = 0;
+    if (startTileY < 0) startTileY = 0;
+    if (endTileX >= mMapWidth) endTileX = mMapWidth - 1;
+    if (endTileY >= mMapHeight) endTileY = mMapHeight - 1;
+    
+    // Kiểm tra từng tile mà đối tượng trùng lặp
+    for (int y = startTileY; y <= endTileY; y++) {
+        for (int x = startTileX; x <= endTileX; x++) {
+            // Chỉ kiểm tra nếu vị trí hợp lệ
+            if (y >= 0 && y < mMapHeight && x >= 0 && x < mMapWidth) {
+                // Nếu bất kỳ tile nào có giá trị khác 0, có va chạm
+                if (mCollisionData[y][x] != 0) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
 }
 
 void CollisionMap::render(SDL_Renderer* renderer, SDL_Rect* camera, Texture* tileSheet) {

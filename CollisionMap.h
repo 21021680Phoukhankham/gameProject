@@ -22,6 +22,11 @@ public:
     bool checkCollision(int x, int y);
     void render(SDL_Renderer* renderer, SDL_Rect* camera, Texture* tileSheet);
     
+    // Thêm hàm kiểm tra va chạm giữa hai đối tượng
+    bool checkObjectCollision(SDL_Rect a, SDL_Rect b);
+    // Kiểm tra va chạm giữa đối tượng và collision map
+    bool checkObjectWithMap(SDL_Rect object);
+    
     int getMapWidth() const { return mMapWidth; }
     int getMapHeight() const { return mMapHeight; }
     int getTileWidth() const { return mTileWidth; }
