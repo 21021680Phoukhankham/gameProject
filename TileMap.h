@@ -30,4 +30,7 @@ public:
     int getTileHeight();
     int getMapWidth();
     int getMapHeight();
+    
+    // Thêm getter cho tilesheet
+    Texture* getTileSheet() { return mTileSheet; }
 };

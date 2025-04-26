@@ -64,4 +64,8 @@ public:
     
     // Thêm phương thức kiểm tra hoàn thành animation chết
     bool getDeathAnimationFinished() { return (mCurrentState == DEAD && mCurrentFrame == 2); }
+    
+    // Thêm phương thức getter cho kích thước
+    int getWidth() const { return mWidth * 2; } // Nhân 2 vì khi render đã phóng to kích thước lên 2 lần
+    int getHeight() const { return mHeight * 2; }
 };

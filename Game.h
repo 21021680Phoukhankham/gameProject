@@ -4,6 +4,7 @@
 #include "Texture.h"
 #include "TileMap.h"
 #include "Player.h"
+#include "CollisionMap.h"
 
 class Game {
 private:
@@ -20,7 +21,8 @@ private:
     int mCameraY;
     
     TileMap* mTileMap;
-    Player* mPlayer;  // Đối tượng Player
+    CollisionMap* mCollisionMap;
+    Player* mPlayer;
 
 public:
     Game();
@@ -37,4 +39,5 @@ public:
     
 private:
     void adjustCamera();
+    bool handlePlayerCollision(int nextX, int nextY);
 };

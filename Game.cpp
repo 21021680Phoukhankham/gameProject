@@ -5,7 +5,8 @@ Game::Game() {
     mWindow = nullptr;
     mRenderer = nullptr;
     mTileMap = nullptr;
-    mPlayer = nullptr;  // Khởi tạo player
+    mCollisionMap = nullptr;
+    mPlayer = nullptr;
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
@@ -53,7 +54,8 @@ bool Game::init() {
     }
 
     mTileMap = new TileMap(mRenderer);
-    mPlayer = new Player(mRenderer);  // Tạo đối tượng Player
+    mCollisionMap = new CollisionMap();
+    mPlayer = new Player(mRenderer);
     mIsRunning = true;
     return true;
 }
@@ -68,6 +70,12 @@ bool Game::loadMedia() {
     // Tải map
     if (!mTileMap->loadMap("map\\Map2\\map1.txt")) {
         std::cout << "Không thể tải map!" << std::endl;
+        return false;
+    }
+    
+    // Tải collision map
+    if (!mCollisionMap->loadCollisionMap("map\\Map2\\collision.txt")) {
+        std::cout << "Không thể tải collision map!" << std::endl;
         return false;
     }
     
@@ -191,8 +199,69 @@ void Game::adjustCamera() {
     if (mCameraY > maxY) mCameraY = maxY;
 }
 
+bool Game::handlePlayerCollision(int nextX, int nextY) {
+    // Lấy kích thước của nhân vật
+    int playerWidth = mPlayer->getWidth();
+    int playerHeight = mPlayer->getHeight();
+    
+    // Tính các điểm kiểm tra va chạm (thu nhỏ vùng va chạm so với sprite)
+    int collisionMargin = 8; // Lề va chạm, có thể điều chỉnh nếu cần
+    
+    // Kiểm tra các góc và cạnh của hitbox người chơi
+    bool collisionTopLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + collisionMargin);
+    bool collisionTopRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + collisionMargin);
+    bool collisionBottomLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + playerHeight - collisionMargin);
+    bool collisionBottomRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + playerHeight - collisionMargin);
+    
+    // Thêm điểm kiểm tra ở giữa các cạnh để tránh "lọt" qua các tile khi di chuyển nhanh
+    bool collisionMidTop = mCollisionMap->checkCollision(nextX + playerWidth/2, nextY + collisionMargin);
+    bool collisionMidBottom = mCollisionMap->checkCollision(nextX + playerWidth/2, nextY + playerHeight - collisionMargin);
+    bool collisionMidLeft = mCollisionMap->checkCollision(nextX + collisionMargin, nextY + playerHeight/2);
+    bool collisionMidRight = mCollisionMap->checkCollision(nextX + playerWidth - collisionMargin, nextY + playerHeight/2);
+    
+    // Nếu bất kỳ điểm nào có va chạm, trả về true
+    return collisionTopLeft || collisionTopRight || collisionBottomLeft || collisionBottomRight || 
+           collisionMidTop || collisionMidBottom || collisionMidLeft || collisionMidRight;
+}
+
 void Game::update() {
-    // Cập nhật người chơi
+    // Nếu người chơi đã chết và ở frame cuối, không cập nhật
+    if (mPlayer->getState() == DEAD && mPlayer->getDeathAnimationFinished()) {
+        return;
+    }
+    
+    // Lưu vị trí hiện tại
+    int currentX = mPlayer->getPosX();
+    int currentY = mPlayer->getPosY();
+    
+    // Tính vị trí tiếp theo dựa trên vận tốc
+    int nextX = currentX + mPlayer->getVelocityX();
+    int nextY = currentY + mPlayer->getVelocityY();
+    
+    // Kiểm tra va chạm theo hướng X và Y riêng biệt để cho phép trượt dọc theo tường
+    bool collisionX = false;
+    bool collisionY = false;
+    
+    // Kiểm tra va chạm theo hướng X
+    if (mPlayer->getVelocityX() != 0) {
+        collisionX = handlePlayerCollision(nextX, currentY);
+    }
+    
+    // Kiểm tra va chạm theo hướng Y
+    if (mPlayer->getVelocityY() != 0) {
+        collisionY = handlePlayerCollision(currentX, nextY);
+    }
+    
+    // Cập nhật vị trí theo hướng không có va chạm
+    if (!collisionX) {
+        mPlayer->setPosition(nextX, mPlayer->getPosY());
+    }
+    
+    if (!collisionY) {
+        mPlayer->setPosition(mPlayer->getPosX(), nextY);
+    }
+    
+    // Cập nhật animation và trạng thái của người chơi
     mPlayer->update();
     
     // Điều chỉnh camera
@@ -225,6 +294,9 @@ void Game::render() {
     // Vẽ map với camera
     mTileMap->render(&camera);
     
+    // Vẽ collision map lên trên cùng
+    mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
+    
     // Vẽ người chơi
     mPlayer->render(mCameraX, mCameraY);
     
@@ -236,6 +308,11 @@ void Game::clean() {
     if (mPlayer != nullptr) {
         delete mPlayer;
         mPlayer = nullptr;
+    }
+    
+    if (mCollisionMap != nullptr) {
+        delete mCollisionMap;
+        mCollisionMap = nullptr;
     }
     
     if (mTileMap != nullptr) {
