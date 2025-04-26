@@ -3,6 +3,7 @@
 #include <SDL_image.h>
 #include "Texture.h"
 #include "TileMap.h"
+#include "Player.h"
 
 class Game {
 private:
@@ -14,11 +15,12 @@ private:
     int mScreenHeight;
     float mScale;
     
-    // Thêm biến cho camera
+    // Biến cho camera
     int mCameraX;
     int mCameraY;
     
     TileMap* mTileMap;
+    Player* mPlayer;  // Thêm đối tượng Player
 
 public:
     Game();

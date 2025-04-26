@@ -18,6 +18,9 @@ public:
     bool loadFromFile(std::string path);
     void render(int x, int y);
     void render(int x, int y, SDL_Rect* clip);
+    void render(int x, int y, SDL_Rect* clip, int width, int height);
+    
+    SDL_Texture* getTexture() { return mTexture; }
     
     int getWidth();
     int getHeight();

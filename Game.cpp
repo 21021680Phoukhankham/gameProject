@@ -5,10 +5,11 @@ Game::Game() {
     mWindow = nullptr;
     mRenderer = nullptr;
     mTileMap = nullptr;
+    mPlayer = nullptr;  // Khởi tạo player
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
-    mScale = 2.0f;  // Phóng to mặc định 3.0 lần vì tile size là 16x16
+    mScale = 2.0f;
     mCameraX = 0;
     mCameraY = 0;
 }
@@ -52,6 +53,7 @@ bool Game::init() {
     }
 
     mTileMap = new TileMap(mRenderer);
+    mPlayer = new Player(mRenderer);  // Tạo đối tượng Player
     mIsRunning = true;
     return true;
 }
@@ -69,7 +71,16 @@ bool Game::loadMedia() {
         return false;
     }
     
-    // Không thay đổi kích thước cửa sổ, giữ nguyên kích thước cố định
+    // Tải sprite sheet người chơi
+    if (!mPlayer->loadMedia("img\\player.png")) {
+        std::cout << "Không thể tải sprite sheet người chơi!" << std::endl;
+        return false;
+    }
+    
+    // Đặt vị trí ban đầu cho người chơi ở giữa map
+    int mapWidthPixels = mTileMap->getMapWidth() * mTileMap->getTileWidth();
+    int mapHeightPixels = mTileMap->getMapHeight() * mTileMap->getTileHeight();
+    mPlayer->setPosition(mapWidthPixels / 2, mapHeightPixels / 2);
     
     return true;
 }
@@ -80,8 +91,12 @@ void Game::handleEvents() {
         if (e.type == SDL_QUIT) {
             mIsRunning = false;
         }
-        // Thêm phím điều khiển camera
-        else if (e.type == SDL_KEYDOWN) {
+        
+        // Xử lý event cho người chơi
+        mPlayer->handleEvent(e);
+        
+        // Giữ lại điều khiển camera bằng các phím mũi tên
+        if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
                 case SDLK_UP:
                     mCameraY -= 10;
@@ -101,6 +116,10 @@ void Game::handleEvents() {
 }
 
 void Game::adjustCamera() {
+    // Cập nhật camera để theo dõi người chơi ở giữa màn hình
+    mCameraX = mPlayer->getPosX() - mScreenWidth / mScale / 2;
+    mCameraY = mPlayer->getPosY() - mScreenHeight / mScale / 2;
+    
     // Tính kích thước map (pixel)
     int mapWidth = mTileMap->getMapWidth() * mTileMap->getTileWidth();
     int mapHeight = mTileMap->getMapHeight() * mTileMap->getTileHeight();
@@ -120,6 +139,9 @@ void Game::adjustCamera() {
 }
 
 void Game::update() {
+    // Cập nhật người chơi
+    mPlayer->update();
+    
     // Điều chỉnh camera
     adjustCamera();
 }
@@ -150,11 +172,19 @@ void Game::render() {
     // Vẽ map với camera
     mTileMap->render(&camera);
     
+    // Vẽ người chơi
+    mPlayer->render(mCameraX, mCameraY);
+    
     // Cập nhật màn hình
     SDL_RenderPresent(mRenderer);
 }
 
 void Game::clean() {
+    if (mPlayer != nullptr) {
+        delete mPlayer;
+        mPlayer = nullptr;
+    }
+    
     if (mTileMap != nullptr) {
         delete mTileMap;
         mTileMap = nullptr;
