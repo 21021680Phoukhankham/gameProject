@@ -36,6 +36,12 @@ private:
     int mWidth;
     int mHeight;
     
+    // Thêm các biến điều chỉnh hitbox
+    int mHitboxOffsetX;   // Độ lệch X của hitbox so với vị trí nhân vật
+    int mHitboxOffsetY;   // Độ lệch Y của hitbox so với vị trí nhân vật
+    int mHitboxWidth;     // Chiều rộng của hitbox
+    int mHitboxHeight;    // Chiều cao của hitbox
+    
 public:
     Player(SDL_Renderer* renderer);
     ~Player();
@@ -68,4 +74,13 @@ public:
     // Thêm phương thức getter cho kích thước
     int getWidth() const { return mWidth * 2; } // Nhân 2 vì khi render đã phóng to kích thước lên 2 lần
     int getHeight() const { return mHeight * 2; }
+    
+    // Thêm getter và setter cho các biến hitbox
+    int getHitboxOffsetX() const { return mHitboxOffsetX; }
+    int getHitboxOffsetY() const { return mHitboxOffsetY; }
+    int getHitboxWidth() const { return mHitboxWidth; }
+    int getHitboxHeight() const { return mHitboxHeight; }
+    
+    void setHitboxOffset(int x, int y) { mHitboxOffsetX = x; mHitboxOffsetY = y; }
+    void setHitboxSize(int w, int h) { mHitboxWidth = w; mHitboxHeight = h; }
 };

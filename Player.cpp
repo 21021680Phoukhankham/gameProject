@@ -19,6 +19,12 @@ Player::Player(SDL_Renderer* renderer) {
     
     mWidth = 0;  // Sẽ được cập nhật sau khi tải sprite sheet
     mHeight = 0;
+    
+    // Khởi tạo giá trị mặc định cho hitbox
+    mHitboxOffsetX = 0;
+    mHitboxOffsetY = 2; // Di chuyển hitbox xuống 2px như yêu cầu
+    mHitboxWidth = 0;   // Sẽ được cập nhật sau khi tải sprite
+    mHitboxHeight = 0;  // Sẽ được cập nhật sau khi tải sprite
 }
 
 Player::~Player() {
@@ -49,9 +55,15 @@ bool Player::loadMedia(std::string path) {
     mWidth = sheetWidth / cols;
     mHeight = sheetHeight / rows;
     
+    // Thiết lập kích thước hitbox mặc định (một nửa kích thước render)
+    mHitboxWidth = mWidth;
+    mHitboxHeight = mHeight;
+    
     std::cout << "Kich thuoc sprite sheet: " << sheetWidth << "x" << sheetHeight << std::endl;
     std::cout << "Kich thuoc moi frame: " << mWidth << "x" << mHeight << std::endl;
     std::cout << "Kich thuoc render (x2): " << mWidth * 2 << "x" << mHeight * 2 << std::endl;
+    std::cout << "Hitbox size: " << mHitboxWidth << "x" << mHitboxHeight << std::endl;
+    std::cout << "Hitbox offset: " << mHitboxOffsetX << "," << mHitboxOffsetY << std::endl;
     
     // Tạo các clip cho từng frame trong sprite sheet
     for (int r = 0; r < rows; r++) {

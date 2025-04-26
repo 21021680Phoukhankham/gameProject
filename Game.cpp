@@ -56,6 +56,7 @@ bool Game::init() {
     mTileMap = new TileMap(mRenderer);
     mCollisionMap = new CollisionMap();
     mPlayer = new Player(mRenderer);
+    
     mIsRunning = true;
     return true;
 }
@@ -87,6 +88,26 @@ bool Game::loadMedia() {
     
     // Đặt vị trí ban đầu cho người chơi tại tọa độ (100, 100)
     mPlayer->setPosition(100, 100);
+    
+    // Các tham số để điều chỉnh hitbox
+    int marginLeft = 8;    // Giảm px bên trái
+    int marginTop = 20;     // Giảm px bên trên
+    int marginRight = 8;   // Giảm px bên phải  
+    int marginBottom = -10;  // Giảm px bên dưới
+    
+    // Tính toán offset và kích thước
+    int offsetX = mPlayer->getWidth() / 4 + marginLeft;
+    int offsetY = mPlayer->getHeight() / 4 + marginTop;
+    int hitboxWidth = mPlayer->getWidth() / 2 - (marginLeft + marginRight);
+    int hitboxHeight = mPlayer->getHeight() / 2 - (marginTop + marginBottom);
+    
+    // Thiết lập hitbox cho player với kích thước đã điều chỉnh
+    mPlayer->setHitboxOffset(offsetX, offsetY);
+    mPlayer->setHitboxSize(hitboxWidth, hitboxHeight);
+    
+    std::cout << "Hitbox được thiết lập với:" << std::endl;
+    std::cout << "Offset: (" << offsetX << "," << offsetY << ")" << std::endl;
+    std::cout << "Kích thước: " << hitboxWidth << "x" << hitboxHeight << std::endl;
     
     return true;
 }
@@ -198,12 +219,12 @@ void Game::adjustCamera() {
 }
 
 bool Game::handlePlayerCollision(int nextX, int nextY) {
-    // Tạo SDL_Rect cho nhân vật tại vị trí mới
+    // Tạo SDL_Rect cho nhân vật tại vị trí mới, sử dụng biến hitbox
     SDL_Rect playerRect = {
-        nextX,
-        nextY,
-        mPlayer->getWidth(),
-        mPlayer->getHeight()
+        nextX + mPlayer->getHitboxOffsetX(),
+        nextY + mPlayer->getHitboxOffsetY(),
+        mPlayer->getHitboxWidth(),
+        mPlayer->getHitboxHeight()
     };
     
     // Sử dụng phương thức kiểm tra va chạm mới
@@ -236,15 +257,11 @@ void Game::update() {
     // Kiểm tra va chạm cho chuyển động theo hướng X
     if (mPlayer->getVelocityX() != 0) {
         SDL_Rect nextPosX = {
-            nextX,
-            currentY,
-            mPlayer->getWidth() / 2, // Giảm kích thước hitbox xuống một nửa
-            mPlayer->getHeight() / 2
+            nextX + mPlayer->getHitboxOffsetX(),
+            currentY + mPlayer->getHitboxOffsetY(),
+            mPlayer->getHitboxWidth(),
+            mPlayer->getHitboxHeight()
         };
-        
-        // Căn chỉnh vị trí hitbox vào giữa nhân vật
-        nextPosX.x += mPlayer->getWidth() / 4;
-        nextPosX.y += mPlayer->getHeight() / 4;
         
         bool hasCollisionX = mCollisionMap->checkObjectWithMap(nextPosX);
         
@@ -257,15 +274,11 @@ void Game::update() {
     // Kiểm tra va chạm cho chuyển động theo hướng Y
     if (mPlayer->getVelocityY() != 0) {
         SDL_Rect nextPosY = {
-            mPlayer->getPosX(), // Cập nhật lại vị trí X mới nếu đã di chuyển
-            nextY,
-            mPlayer->getWidth() / 2, // Giảm kích thước hitbox xuống một nửa
-            mPlayer->getHeight() / 2
+            mPlayer->getPosX() + mPlayer->getHitboxOffsetX(),
+            nextY + mPlayer->getHitboxOffsetY(),
+            mPlayer->getHitboxWidth(),
+            mPlayer->getHitboxHeight()
         };
-        
-        // Căn chỉnh vị trí hitbox vào giữa nhân vật
-        nextPosY.x += mPlayer->getWidth() / 4;
-        nextPosY.y += mPlayer->getHeight() / 4;
         
         bool hasCollisionY = mCollisionMap->checkObjectWithMap(nextPosY);
         
@@ -317,10 +330,10 @@ void Game::render() {
     // Vẽ hitbox của người chơi để debug (chỉ vẽ khi debug)
     SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, 255); // Màu đỏ
     SDL_Rect hitbox = {
-        mPlayer->getPosX() - mCameraX + mPlayer->getWidth()/4,
-        mPlayer->getPosY() - mCameraY + mPlayer->getHeight()/4,
-        mPlayer->getWidth()/2,
-        mPlayer->getHeight()/2
+        mPlayer->getPosX() - mCameraX + mPlayer->getHitboxOffsetX(),
+        mPlayer->getPosY() - mCameraY + mPlayer->getHitboxOffsetY(),
+        mPlayer->getHitboxWidth(),
+        mPlayer->getHitboxHeight()
     };
     SDL_RenderDrawRect(mRenderer, &hitbox);
     
