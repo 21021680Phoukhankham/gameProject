@@ -71,18 +71,22 @@ void Player::handleEvent(SDL_Event& e) {
     if (e.type == SDL_KEYDOWN && e.key.repeat == 0) {
         switch (e.key.keysym.sym) {
             case SDLK_w:
+            case SDLK_UP:
                 mVelY = -2;
                 setState(MOVING);
                 break;
             case SDLK_s:
+            case SDLK_DOWN:
                 mVelY = 2;
                 setState(MOVING);
                 break;
             case SDLK_a:
+            case SDLK_LEFT:
                 mVelX = -2;
                 setState(MOVING);
                 break;
             case SDLK_d:
+            case SDLK_RIGHT:
                 mVelX = 2;
                 setState(MOVING);
                 break;
@@ -97,18 +101,22 @@ void Player::handleEvent(SDL_Event& e) {
     else if (e.type == SDL_KEYUP && e.key.repeat == 0) {
         switch (e.key.keysym.sym) {
             case SDLK_w:
+            case SDLK_UP:
                 mVelY = 0;
                 if (mVelX == 0) setState(IDLE);
                 break;
             case SDLK_s:
+            case SDLK_DOWN:
                 mVelY = 0;
                 if (mVelX == 0) setState(IDLE);
                 break;
             case SDLK_a:
+            case SDLK_LEFT:
                 mVelX = 0;
                 if (mVelY == 0) setState(IDLE);
                 break;
             case SDLK_d:
+            case SDLK_RIGHT:
                 mVelX = 0;
                 if (mVelY == 0) setState(IDLE);
                 break;

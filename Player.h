@@ -45,4 +45,10 @@ public:
     int getPosX();
     int getPosY();
     void setPosition(int x, int y);
+    
+    // Thêm các phương thức mới để truy xuất và thiết lập vận tốc
+    int getVelocityX() { return mVelX; }
+    int getVelocityY() { return mVelY; }
+    void setVelocityX(int velX) { mVelX = velX; }
+    void setVelocityY(int velY) { mVelY = velY; }
 };

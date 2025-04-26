@@ -20,7 +20,7 @@ private:
     int mCameraY;
     
     TileMap* mTileMap;
-    Player* mPlayer;  // Thêm đối tượng Player
+    Player* mPlayer;  // Đối tượng Player
 
 public:
     Game();

@@ -9,7 +9,7 @@ Game::Game() {
     mIsRunning = false;
     mScreenWidth = 1024;
     mScreenHeight = 768;
-    mScale = 2.0f;
+    mScale = 1.0f;
     mCameraX = 0;
     mCameraY = 0;
 }
@@ -92,25 +92,64 @@ void Game::handleEvents() {
             mIsRunning = false;
         }
         
-        // Xử lý event cho người chơi
+        // Xử lý event cho người chơi (vẫn giữ để xử lý các phím đặc biệt như SPACE và RETURN)
         mPlayer->handleEvent(e);
-        
-        // Giữ lại điều khiển camera bằng các phím mũi tên
-        if (e.type == SDL_KEYDOWN) {
-            switch (e.key.keysym.sym) {
-                case SDLK_UP:
-                    mCameraY -= 10;
-                    break;
-                case SDLK_DOWN:
-                    mCameraY += 10;
-                    break;
-                case SDLK_LEFT:
-                    mCameraX -= 10;
-                    break;
-                case SDLK_RIGHT:
-                    mCameraX += 10;
-                    break;
-            }
+    }
+    
+    // Kiểm tra trạng thái phím hiện tại để cập nhật liên tục
+    const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
+    
+    // Biến tạm để theo dõi thay đổi vận tốc
+    bool velocityChanged = false;
+    
+    // Kiểm tra phím di chuyển
+    if (currentKeyStates[SDL_SCANCODE_W] || currentKeyStates[SDL_SCANCODE_UP]) {
+        mPlayer->setVelocityY(-2);
+        mPlayer->setState(MOVING);
+        velocityChanged = true;
+    } 
+    else if (currentKeyStates[SDL_SCANCODE_S] || currentKeyStates[SDL_SCANCODE_DOWN]) {
+        mPlayer->setVelocityY(2);
+        mPlayer->setState(MOVING);
+        velocityChanged = true;
+    } 
+    else {
+        mPlayer->setVelocityY(0);
+    }
+    
+    if (currentKeyStates[SDL_SCANCODE_A] || currentKeyStates[SDL_SCANCODE_LEFT]) {
+        mPlayer->setVelocityX(-2);
+        mPlayer->setState(MOVING);
+        velocityChanged = true;
+    } 
+    else if (currentKeyStates[SDL_SCANCODE_D] || currentKeyStates[SDL_SCANCODE_RIGHT]) {
+        mPlayer->setVelocityX(2);
+        mPlayer->setState(MOVING);
+        velocityChanged = true;
+    } 
+    else {
+        mPlayer->setVelocityX(0);
+    }
+    
+    // Kiểm tra phím Space cho tấn công
+    if (currentKeyStates[SDL_SCANCODE_SPACE]) {
+        if (mPlayer->getState() != ATTACKING) {
+            mPlayer->setState(ATTACKING);
+        }
+    }
+    
+    // Kiểm tra phím Enter cho trạng thái chết
+    if (currentKeyStates[SDL_SCANCODE_RETURN]) {
+        if (mPlayer->getState() != DEAD) {
+            mPlayer->setState(DEAD);
+        }
+    }
+    
+    // Nếu không có phím di chuyển nào được nhấn và không đang tấn công hoặc chết
+    if (!velocityChanged && mPlayer->getState() == MOVING) {
+        // Chỉ chuyển về IDLE khi không di chuyển và đang ở trạng thái MOVING
+        if (mPlayer->getVelocityX() == 0 && mPlayer->getVelocityY() == 0) {
+            mPlayer->setState(IDLE);
         }
     }
 }
