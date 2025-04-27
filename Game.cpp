@@ -130,6 +130,10 @@ bool Game::loadMedia() {
     std::cout << "Offset: (" << offsetX << "," << offsetY << ")" << std::endl;
     std::cout << "Kích thước: " << hitboxWidth << "x" << hitboxHeight << std::endl;
     
+    // Thiết lập máu cho người chơi
+    mPlayer->setMaxHealth(100);
+    mPlayer->setCurrentHealth(100);
+    
     return true;
 }
 
@@ -196,14 +200,20 @@ void Game::handleEvents() {
     // Kiểm tra phím Enter cho trạng thái chết
     if (currentKeyStates[SDL_SCANCODE_RETURN]) {
         if (mPlayer->getState() != DEAD) {
-            mPlayer->setState(DEAD);
+            mPlayer->takeDamage(mPlayer->getCurrentHealth()); // Gây sát thương bằng máu hiện tại để chết
         }
+    }
+    
+    // Kiểm tra phím H để hồi máu (để test)
+    if (currentKeyStates[SDL_SCANCODE_H]) {
+        mPlayer->heal(1); // Hồi 1 máu mỗi frame khi giữ H
     }
     
     // Kiểm tra phím R cho hồi sinh (thêm ở đây để có thể phát hiện được phím nhấn liên tục)
     if (currentKeyStates[SDL_SCANCODE_R]) {
         if (mPlayer->getState() == DEAD) {
             mPlayer->forceSetState(IDLE);
+            mPlayer->setCurrentHealth(mPlayer->getMaxHealth()); // Phục hồi đầy máu
         }
     }
     
@@ -268,7 +278,7 @@ void Game::update() {
     if (tileX >= 0 && tileX < mCollisionMap->getMapWidth() && 
         tileY >= 0 && tileY < mCollisionMap->getMapHeight()) {
         // In ra tọa độ tile
-        std::cout << "Player at tile (" << tileX << "," << tileY << ")" << std::endl;
+        // std::cout << "Player at tile (" << tileX << "," << tileY << ")" << std::endl;
     }
     
     // Tính vị trí tiếp theo dựa trên vận tốc
@@ -345,6 +355,19 @@ void Game::update() {
         mMonsterManager->checkAttackCollision(attackHitbox);
     }
     
+    // Thêm đoạn này để xử lý khi quái vật tấn công người chơi
+    // Chỉ kiểm tra nếu người chơi không trong trạng thái chết
+    if (mPlayer->getState() != DEAD && !mPlayer->isInvincible()) {
+        // Kiểm tra va chạm với quái vật đang tấn công
+        if (mMonsterManager->checkCollisionWithPlayer(playerHitbox)) {
+            // Người chơi bị tấn công, nhận 10 điểm sát thương
+            if (mPlayer->takeDamage(10)) {
+                // Nếu nhận sát thương thành công (không bất tử)
+                std::cout << "Người chơi bị tấn công, máu còn: " << mPlayer->getCurrentHealth() << std::endl;
+            }
+        }
+    }
+    
     // Cập nhật animation và trạng thái của người chơi
     mPlayer->update();
     
@@ -379,7 +402,7 @@ void Game::render() {
     mTileMap->render(&camera);
     
     // Vẽ collision map lên trên cùng (bỏ comment nếu muốn hiển thị collision map)
-    mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
+    // mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
     
     // Vẽ overlay map
     mOverlayMap->render(&camera);

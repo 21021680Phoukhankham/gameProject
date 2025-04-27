@@ -17,6 +17,12 @@ enum MonsterType {
     // Thêm các loại quái vật khác ở đây sau này
 };
 
+// Thêm enum MonsterDirection để xác định hướng quái vật
+enum MonsterDirection {
+    MONSTER_RIGHT,
+    MONSTER_LEFT
+};
+
 class Monster {
 private:
     Texture* mSpriteSheet;
@@ -35,6 +41,9 @@ private:
     
     int mWidth;
     int mHeight;
+    
+    // Thêm biến hướng
+    MonsterDirection mDirection;
     
     // Thông tin về hitbox
     int mHitboxOffsetX;
@@ -68,6 +77,10 @@ public:
     
     void setState(MonsterState state);
     MonsterState getState();
+    
+    // Thêm getter và setter cho hướng
+    void setDirection(MonsterDirection dir);
+    MonsterDirection getDirection();
     
     int getPosX();
     int getPosY();

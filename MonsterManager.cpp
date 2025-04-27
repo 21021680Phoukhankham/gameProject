@@ -107,30 +107,40 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
         // Phạm vi tấn công (100 pixel)
         int attackRange = 100 * 100;
         
-        if (distanceSquared <= detectionRange) {
-            // Nếu người chơi trong phạm vi phát hiện
-            
-            if (distanceSquared <= attackRange) {
-                // Nếu người chơi trong phạm vi tấn công
-                if (monster->getState() != MONSTER_ATTACKING && monster->getState() != MONSTER_HURT) {
-                    // Dừng di chuyển và tấn công
-                    monster->setVelocityX(0);
-                    monster->setVelocityY(0);
-                    monster->setState(MONSTER_ATTACKING);
+        // Cập nhật hướng quái vật dựa vào hướng di chuyển
+        if (monster->getVelocityX() > 0) {
+            monster->setDirection(MONSTER_RIGHT);
+        } else if (monster->getVelocityX() < 0) {
+            monster->setDirection(MONSTER_LEFT);
+        }
+        
+        if (distanceSquared <= attackRange) {
+            // Nếu người chơi trong phạm vi tấn công
+            if (monster->getState() != MONSTER_ATTACKING && monster->getState() != MONSTER_HURT) {
+                // Dừng di chuyển và tấn công
+                monster->setVelocityX(0);
+                monster->setVelocityY(0);
+                monster->setState(MONSTER_ATTACKING);
+                
+                // Đặt hướng quái vật để quay về phía người chơi
+                if (distanceX > 0) {
+                    monster->setDirection(MONSTER_RIGHT);
+                } else {
+                    monster->setDirection(MONSTER_LEFT);
                 }
-            } else {
-                // Nếu người chơi trong phạm vi phát hiện nhưng ngoài phạm vi tấn công
-                if (monster->getState() != MONSTER_HURT && monster->getState() != MONSTER_ATTACKING) {
-                    // Di chuyển về phía người chơi
-                    monster->setState(MONSTER_MOVING);
-                    
-                    // Tính toán vận tốc (hướng đến người chơi)
-                    int velX = (distanceX > 0) ? 1 : ((distanceX < 0) ? -1 : 0);
-                    int velY = (distanceY > 0) ? 1 : ((distanceY < 0) ? -1 : 0);
-                    
-                    monster->setVelocityX(velX);
-                    monster->setVelocityY(velY);
-                }
+            }
+        } else if (distanceSquared <= detectionRange) {
+            // Nếu người chơi trong phạm vi phát hiện nhưng ngoài phạm vi tấn công
+            if (monster->getState() != MONSTER_HURT && monster->getState() != MONSTER_ATTACKING) {
+                // Di chuyển về phía người chơi
+                monster->setState(MONSTER_MOVING);
+                
+                // Tính toán vận tốc (hướng đến người chơi)
+                int velX = (distanceX > 0) ? 1 : ((distanceX < 0) ? -1 : 0);
+                int velY = (distanceY > 0) ? 1 : ((distanceY < 0) ? -1 : 0);
+                
+                monster->setVelocityX(velX);
+                monster->setVelocityY(velY);
             }
         } else {
             // Nếu người chơi ngoài phạm vi phát hiện, quái vật đứng yên

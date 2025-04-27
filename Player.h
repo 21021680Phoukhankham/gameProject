@@ -42,6 +42,12 @@ private:
     int mHitboxWidth;     // Chiều rộng của hitbox
     int mHitboxHeight;    // Chiều cao của hitbox
     
+    // Thêm các biến cho máu
+    int mMaxHealth;        // Máu tối đa
+    int mCurrentHealth;    // Máu hiện tại
+    bool mIsInvincible;    // Trạng thái bất tử tạm thời sau khi bị tấn công
+    int mInvincibleTimer;  // Đếm thời gian bất tử
+    
 public:
     Player(SDL_Renderer* renderer);
     ~Player();
@@ -83,4 +89,23 @@ public:
     
     void setHitboxOffset(int x, int y) { mHitboxOffsetX = x; mHitboxOffsetY = y; }
     void setHitboxSize(int w, int h) { mHitboxWidth = w; mHitboxHeight = h; }
+    
+    // Thêm các phương thức cho hệ thống máu
+    int getMaxHealth() const { return mMaxHealth; }
+    int getCurrentHealth() const { return mCurrentHealth; }
+    
+    void setMaxHealth(int health) { mMaxHealth = health; }
+    void setCurrentHealth(int health) { mCurrentHealth = health; }
+    
+    // Thêm phương thức nhận sát thương
+    bool takeDamage(int damage);
+    
+    // Phục hồi máu
+    void heal(int amount);
+    
+    // Hiển thị thanh máu
+    void renderHealthBar(int camX, int camY);
+    
+    // Kiểm tra xem người chơi có đang bất tử không
+    bool isInvincible() const { return mIsInvincible; }
 };

@@ -15,6 +15,9 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
     mFrameDelay = 8;
     mFrameTimer = 0;
     
+    // Khởi tạo hướng mặc định
+    mDirection = MONSTER_RIGHT;
+    
     mWidth = 0;
     mHeight = 0;
     
@@ -180,6 +183,15 @@ void Monster::update() {
     }
 }
 
+// Thêm getter và setter cho hướng
+void Monster::setDirection(MonsterDirection dir) {
+    mDirection = dir;
+}
+
+MonsterDirection Monster::getDirection() {
+    return mDirection;
+}
+
 void Monster::render(int camX, int camY) {
     int row = 0;
     
@@ -218,8 +230,15 @@ void Monster::render(int camX, int camY) {
         // Tạo vùng hiển thị
         SDL_Rect renderQuad = {renderX, renderY, renderWidth, renderHeight};
         
-        // Render texture
-        SDL_RenderCopy(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad);
+        // Render quái vật dựa vào hướng di chuyển
+        if (mDirection == MONSTER_RIGHT) {
+            // Render bình thường nếu nhìn sang phải
+            SDL_RenderCopy(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad);
+        } else {
+            // Lật ngang nếu nhìn sang trái
+            SDL_RenderCopyEx(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad, 
+                             0, NULL, SDL_FLIP_HORIZONTAL);
+        }
         
         // Render thanh máu (chỉ khi quái vật còn sống)
         if (mCurrentState != MONSTER_DEAD) {
