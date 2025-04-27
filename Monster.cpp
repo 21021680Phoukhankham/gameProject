@@ -56,6 +56,20 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
     }
     
     mCurrentHealth = mMaxHealth;
+    
+    // Khởi tạo các biến cho quá trình tấn công
+    mAttackPhase = ATTACK_COOLDOWN;
+    mAttackTimer = 0;
+    mAttackDuration = 30; // 0.5 giây ở 60fps
+    mAttackCooldown = 60; // 1 giây ở 60fps
+    
+    mStartPosX = 0;
+    mStartPosY = 0;
+    mTargetPosX = 0;
+    mTargetPosY = 0;
+    mOriginalPosX = 0;
+    mOriginalPosY = 0;
+    mHasDealtDamage = false;
 }
 
 Monster::~Monster() {
@@ -124,9 +138,13 @@ void Monster::update() {
         return;
     }
     
-    // Cập nhật vị trí
-    mPosX += mVelX;
-    mPosY += mVelY;
+    // Nếu đang trong trạng thái tấn công, cập nhật quá trình tấn công
+    if (mCurrentState == MONSTER_ATTACKING) {
+        // Quá trình tấn công được xử lý bởi MonsterManager
+        // Do đó không tự cập nhật vị trí hoặc frame ở đây
+    } 
+    // Đã loại bỏ việc tự cập nhật vị trí trong Monster::update
+    // Việc cập nhật vị trí được xử lý bởi MonsterManager
     
     // Nếu đang trong trạng thái bị thương, giảm thời gian cooldown
     if (mHasBeenHit) {
@@ -136,49 +154,45 @@ void Monster::update() {
         }
     }
     
-    // Cập nhật frame animation
-    mFrameTimer++;
-    if (mFrameTimer >= mFrameDelay) {
-        mFrameTimer = 0;
-        
-        // Xử lý số frame khác nhau cho mỗi trạng thái
-        int maxFrames = 0;
-        
-        switch (mCurrentState) {
-            case MONSTER_IDLE:
-                maxFrames = mIdleFrames;
-                break;
-            case MONSTER_MOVING:
-                maxFrames = mMovingFrames;
-                break;
-            case MONSTER_ATTACKING:
-                maxFrames = mAttackingFrames;
-                // Nếu hoàn thành animation tấn công, chuyển về trạng thái idle
-                if (mCurrentFrame >= maxFrames - 1) {
-                    setState(MONSTER_IDLE);
-                    return;
-                }
-                break;
-            case MONSTER_HURT:
-                maxFrames = mHurtFrames;
-                // Nếu hoàn thành animation bị tấn công, chuyển về trạng thái idle
-                if (mCurrentFrame >= maxFrames - 1) {
-                    setState(MONSTER_IDLE);
-                    return;
-                }
-                break;
-            case MONSTER_DEAD:
-                maxFrames = mDeadFrames;
-                // Nếu đang ở trạng thái chết, dừng ở frame cuối
-                if (mCurrentFrame >= maxFrames - 1) {
-                    return;
-                }
-                break;
-        }
-        
-        // Cập nhật frame
-        if (maxFrames > 0) {
-            mCurrentFrame = (mCurrentFrame + 1) % maxFrames;
+    // Cập nhật frame animation nếu không đang trong trạng thái tấn công
+    if (mCurrentState != MONSTER_ATTACKING) {
+        mFrameTimer++;
+        if (mFrameTimer >= mFrameDelay) {
+            mFrameTimer = 0;
+            
+            // Xử lý số frame khác nhau cho mỗi trạng thái
+            int maxFrames = 0;
+            
+            switch (mCurrentState) {
+                case MONSTER_IDLE:
+                    maxFrames = mIdleFrames;
+                    break;
+                case MONSTER_MOVING:
+                    maxFrames = mMovingFrames;
+                    break;
+                case MONSTER_HURT:
+                    maxFrames = mHurtFrames;
+                    // Nếu hoàn thành animation bị tấn công, chuyển về trạng thái idle
+                    if (mCurrentFrame >= maxFrames - 1) {
+                        setState(MONSTER_IDLE);
+                        return;
+                    }
+                    break;
+                case MONSTER_DEAD:
+                    maxFrames = mDeadFrames;
+                    // Nếu đang ở trạng thái chết, dừng ở frame cuối
+                    if (mCurrentFrame >= maxFrames - 1) {
+                        return;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            
+            // Cập nhật frame
+            if (maxFrames > 0) {
+                mCurrentFrame = (mCurrentFrame + 1) % maxFrames;
+            }
         }
     }
 }
@@ -203,7 +217,12 @@ void Monster::render(int camX, int camY) {
             row = 1; // Hàng 2
             break;
         case MONSTER_ATTACKING:
-            row = 2; // Hàng 3
+            // Khi đang trong giai đoạn cooldown, hiển thị animation đứng yên
+            if (mAttackPhase == ATTACK_COOLDOWN) {
+                row = 0; // Hàng 1 (IDLE)
+            } else {
+                row = 2; // Hàng 3 (ATTACKING)
+            }
             break;
         case MONSTER_HURT:
             row = 3; // Hàng 4
@@ -244,6 +263,16 @@ void Monster::render(int camX, int camY) {
         if (mCurrentState != MONSTER_DEAD) {
             renderHealthBar(camX, camY);
         }
+        
+        // Debug: vẽ hitbox
+        SDL_SetRenderDrawColor(mRenderer, 0, 255, 0, 255); // Màu xanh lá
+        SDL_Rect hitboxRect = {
+            mPosX + mHitboxOffsetX - camX,
+            mPosY + mHitboxOffsetY - camY,
+            mHitboxWidth,
+            mHitboxHeight
+        };
+        SDL_RenderDrawRect(mRenderer, &hitboxRect);
     }
 }
 
@@ -344,5 +373,91 @@ void Monster::takeDamage(int damage) {
         // Thiết lập cooldown để tránh bị đánh liên tục
         mHasBeenHit = true;
         mHitCooldown = 30; // 30 frame (nửa giây ở 60fps)
+    }
+}
+
+// Phương thức bắt đầu tấn công mới
+void Monster::startAttack(int targetX, int targetY) {
+    // Nếu đang trong giai đoạn tấn công khác hoặc đã chết, không thực hiện
+    if (mCurrentState == MONSTER_DEAD || 
+       (mCurrentState == MONSTER_ATTACKING && mAttackPhase != ATTACK_COOLDOWN)) {
+        return;
+    }
+    
+    // Lưu vị trí ban đầu trước khi tấn công
+    mOriginalPosX = mPosX;
+    mOriginalPosY = mPosY;
+    
+    // Lưu vị trí hiện tại làm điểm bắt đầu
+    mStartPosX = mPosX;
+    mStartPosY = mPosY;
+    
+    // Lưu vị trí mục tiêu, điều chỉnh lên trên 20px để quái vật không bị lệch xuống dưới
+    // Tính toán hướng di chuyển để lao sâu thêm 5px
+    int dirX = (targetX > mPosX) ? 5 : -5; // Thêm 5px vào hướng di chuyển
+    
+    mTargetPosX = targetX + dirX; // Lao sâu thêm 5px theo hướng di chuyển
+    mTargetPosY = targetY - 20; // Điều chỉnh mục tiêu lên trên 20px
+    
+    // Đặt hướng dựa vào mục tiêu
+    if (targetX > mPosX) {
+        mDirection = MONSTER_RIGHT;
+    } else {
+        mDirection = MONSTER_LEFT;
+    }
+    
+    // Bắt đầu giai đoạn chuẩn bị tấn công
+    mAttackPhase = ATTACK_CHARGE;
+    mAttackTimer = 0;
+    mCurrentState = MONSTER_ATTACKING;
+    mCurrentFrame = 0; // Bắt đầu từ frame đầu tiên của animation tấn công
+    mHasDealtDamage = false;
+    
+    // Dừng di chuyển trong quá trình tấn công
+    mVelX = 0;
+    mVelY = 0;
+    
+    std::cout << "Quái vật bắt đầu chuẩn bị tấn công!" << std::endl;
+}
+
+// Phương thức cập nhật quá trình tấn công đã được chuyển sang MonsterManager
+// Giữ lại chỉ để tương thích nhưng nội dung trống
+void Monster::updateAttack() {
+    // Nội dung đã được chuyển sang MonsterManager::updateMonsterAttack
+    // Hàm này chỉ giữ lại để tương thích với code cũ
+}
+
+// Phương thức cập nhật animation tấn công
+void Monster::updateAttackAnimation() {
+    mFrameTimer++;
+    if (mFrameTimer >= mFrameDelay) {
+        mFrameTimer = 0;
+        
+        // Xác định số frame tối đa cho animation tấn công
+        int maxFrames = mAttackingFrames;
+        
+        if (mAttackPhase == ATTACK_CHARGE) {
+            // Sử dụng các frame đầu của animation tấn công
+            mCurrentFrame = (int)(mAttackTimer / (mAttackDuration / 2.0f) * (maxFrames / 2.0f));
+            if (mCurrentFrame >= maxFrames / 2) mCurrentFrame = maxFrames / 2 - 1;
+        } 
+        else if (mAttackPhase == ATTACK_LUNGE) {
+            // Sử dụng các frame giữa của animation tấn công
+            mCurrentFrame = maxFrames / 2 + (int)(mAttackTimer / (float)mAttackDuration * (maxFrames / 2.0f));
+            if (mCurrentFrame >= maxFrames) mCurrentFrame = maxFrames - 1;
+        }
+        else if (mAttackPhase == ATTACK_RETREAT) {
+            // Sử dụng đúng các frame của animation tấn công theo thứ tự ngược lại
+            // Lấy các frame từ maxFrames-1 về 0 để tạo hiệu ứng tua ngược
+            // Đảm bảo tua từ frame cuối cùng của tấn công về frame đầu tiên
+            mCurrentFrame = maxFrames - 1 - (int)((float)mAttackTimer / mAttackDuration * (maxFrames - 1));
+            if (mCurrentFrame < 0) mCurrentFrame = 0;
+        }
+        else if (mAttackPhase == ATTACK_COOLDOWN) {
+            // Chuyển sang dùng frame của trạng thái đứng yên (IDLE) thay vì frame tấn công
+            // Tính toán frame hiện tại dựa trên số lượng frame của trạng thái IDLE
+            int idleFrameCount = mIdleFrames;
+            mCurrentFrame = (mAttackTimer / 10) % idleFrameCount; // Chuyển frame sau mỗi 10 đơn vị thời gian
+        }
     }
 }

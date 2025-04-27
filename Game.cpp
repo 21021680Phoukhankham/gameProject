@@ -61,6 +61,9 @@ bool Game::init() {
     mPlayer = new Player(mRenderer);
     mMonsterManager = new MonsterManager(mRenderer);  // Tạo đối tượng MonsterManager
     
+    // Thêm dòng này để cung cấp CollisionMap cho MonsterManager
+    mMonsterManager->setCollisionMap(mCollisionMap);
+    
     mIsRunning = true;
     return true;
 }
@@ -356,7 +359,7 @@ void Game::update() {
     }
     
     // Thêm đoạn này để xử lý khi quái vật tấn công người chơi
-    // Chỉ kiểm tra nếu người chơi không trong trạng thái chết
+    // Chỉ kiểm tra nếu người chơi không trong trạng thái chết và không bất tử
     if (mPlayer->getState() != DEAD && !mPlayer->isInvincible()) {
         // Kiểm tra va chạm với quái vật đang tấn công
         if (mMonsterManager->checkCollisionWithPlayer(playerHitbox)) {
@@ -401,8 +404,8 @@ void Game::render() {
     // Vẽ map với camera
     mTileMap->render(&camera);
     
-    // Vẽ collision map lên trên cùng (bỏ comment nếu muốn hiển thị collision map)
-    // mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
+    // Vẽ collision map lên trên cùng
+    mCollisionMap->render(mRenderer, &camera, mTileMap->getTileSheet());
     
     // Vẽ overlay map
     mOverlayMap->render(&camera);

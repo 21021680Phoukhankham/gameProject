@@ -2,11 +2,13 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdlib> // Cho hàm rand()
 
 MonsterManager::MonsterManager(SDL_Renderer* renderer, int tileWidth, int tileHeight) {
     mRenderer = renderer;
     mTileWidth = tileWidth;
     mTileHeight = tileHeight;
+    mCollisionMap = nullptr; // Khởi tạo nullptr
 }
 
 MonsterManager::~MonsterManager() {
@@ -76,6 +78,25 @@ bool MonsterManager::loadMonsterMap(std::string path) {
     return true;
 }
 
+// Phương thức kiểm tra va chạm cho quái vật
+bool MonsterManager::handleMonsterCollision(Monster* monster, int nextX, int nextY) {
+    // Nếu không có collision map, trả về false (không có va chạm)
+    if (mCollisionMap == nullptr) {
+        return false;
+    }
+    
+    // Tạo SDL_Rect cho quái vật tại vị trí mới
+    SDL_Rect monsterRect = {
+        nextX + monster->getHitboxOffsetX(),
+        nextY + monster->getHitboxOffsetY(),
+        monster->getHitboxWidth(),
+        monster->getHitboxHeight()
+    };
+    
+    // Sử dụng phương thức kiểm tra va chạm từ CollisionMap
+    return mCollisionMap->checkObjectWithMap(monsterRect);
+}
+
 void MonsterManager::update(SDL_Rect playerHitbox) {
     // Cập nhật trạng thái của tất cả quái vật
     for (auto monster : mMonsters) {
@@ -84,6 +105,12 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
         
         // Nếu quái vật đã chết, bỏ qua xử lý AI
         if (monster->getState() == MONSTER_DEAD) {
+            continue;
+        }
+        
+        // Nếu quái vật đang trong trạng thái tấn công, cập nhật tấn công
+        if (monster->getState() == MONSTER_ATTACKING) {
+            updateMonsterAttack(monster);
             continue;
         }
         
@@ -117,16 +144,53 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
         if (distanceSquared <= attackRange) {
             // Nếu người chơi trong phạm vi tấn công
             if (monster->getState() != MONSTER_ATTACKING && monster->getState() != MONSTER_HURT) {
-                // Dừng di chuyển và tấn công
-                monster->setVelocityX(0);
-                monster->setVelocityY(0);
-                monster->setState(MONSTER_ATTACKING);
+                // Tính toán vị trí tấn công
+                int targetX = playerCenterX;
+                int targetY = playerCenterY;
                 
-                // Đặt hướng quái vật để quay về phía người chơi
-                if (distanceX > 0) {
-                    monster->setDirection(MONSTER_RIGHT);
+                // Tạo hitbox tạm thời để kiểm tra va chạm tại vị trí tấn công
+                SDL_Rect attackHitbox = {
+                    targetX + monster->getHitboxOffsetX() - monster->getHitboxWidth() / 2,
+                    targetY + monster->getHitboxOffsetY() - monster->getHitboxHeight() / 2,
+                    monster->getHitboxWidth(),
+                    monster->getHitboxHeight()
+                };
+                
+                // Kiểm tra xem vị trí tấn công có va chạm với map không
+                if (!mCollisionMap->checkObjectWithMap(attackHitbox)) {
+                    // Nếu không có va chạm, bắt đầu tấn công
+                    monster->startAttack(targetX, targetY);
                 } else {
-                    monster->setDirection(MONSTER_LEFT);
+                    // Nếu có va chạm, vẫn tấn công nhưng sẽ dừng trước vị trí va chạm
+                    // Tìm vị trí gần nhất không có va chạm
+                    int dirX = (targetX > monster->getPosX()) ? 1 : -1;
+                    int dirY = (targetY > monster->getPosY()) ? 1 : -1;
+                    
+                    int testX = monster->getPosX();
+                    int testY = monster->getPosY();
+                    
+                    // Di chuyển từng bước nhỏ cho đến khi phát hiện va chạm
+                    for (int i = 0; i < 50; i++) {  // Giới hạn số bước
+                        testX += dirX;
+                        testY += dirY;
+                        
+                        SDL_Rect testHitbox = {
+                            testX + monster->getHitboxOffsetX(),
+                            testY + monster->getHitboxOffsetY(),
+                            monster->getHitboxWidth(),
+                            monster->getHitboxHeight()
+                        };
+                        
+                        if (mCollisionMap->checkObjectWithMap(testHitbox)) {
+                            // Nếu phát hiện va chạm, lùi lại một bước
+                            testX -= dirX;
+                            testY -= dirY;
+                            break;
+                        }
+                    }
+                    
+                    // Sử dụng vị trí tìm được
+                    monster->startAttack(testX, testY);
                 }
             }
         } else if (distanceSquared <= detectionRange) {
@@ -141,6 +205,53 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
                 
                 monster->setVelocityX(velX);
                 monster->setVelocityY(velY);
+                
+                // Tính vị trí mới theo từng trục
+                int currentX = monster->getPosX();
+                int currentY = monster->getPosY();
+                int nextX = currentX + monster->getVelocityX();
+                int nextY = currentY + monster->getVelocityY();
+                
+                // Kiểm tra va chạm theo trục X
+                bool hasCollisionX = false;
+                if (monster->getVelocityX() != 0) {
+                    hasCollisionX = handleMonsterCollision(monster, nextX, currentY);
+                    if (!hasCollisionX) {
+                        // Nếu không có va chạm, cập nhật vị trí X
+                        monster->setPosition(nextX, currentY);
+                    } else {
+                        // Nếu có va chạm, dừng di chuyển theo X
+                        monster->setVelocityX(0);
+                    }
+                }
+                
+                // Lấy vị trí hiện tại sau khi đã cập nhật X (nếu có)
+                currentX = monster->getPosX();
+                
+                // Kiểm tra va chạm theo trục Y
+                bool hasCollisionY = false;
+                if (monster->getVelocityY() != 0) {
+                    hasCollisionY = handleMonsterCollision(monster, currentX, nextY);
+                    if (!hasCollisionY) {
+                        // Nếu không có va chạm, cập nhật vị trí Y
+                        monster->setPosition(currentX, nextY);
+                    } else {
+                        // Nếu có va chạm, dừng di chuyển theo Y
+                        monster->setVelocityY(0);
+                    }
+                }
+                
+                // Nếu không thể di chuyển theo cả X và Y, thử tìm đường đi khác
+                if (hasCollisionX && hasCollisionY) {
+                    // Thử di chuyển theo một hướng ngẫu nhiên
+                    int randomDir = rand() % 4; // 0: lên, 1: phải, 2: xuống, 3: trái
+                    switch (randomDir) {
+                        case 0: monster->setVelocityY(-1); monster->setVelocityX(0); break;
+                        case 1: monster->setVelocityX(1); monster->setVelocityY(0); break;
+                        case 2: monster->setVelocityY(1); monster->setVelocityX(0); break;
+                        case 3: monster->setVelocityX(-1); monster->setVelocityY(0); break;
+                    }
+                }
             }
         } else {
             // Nếu người chơi ngoài phạm vi phát hiện, quái vật đứng yên
@@ -153,6 +264,129 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
     }
 }
 
+void MonsterManager::updateMonsterAttack(Monster* monster) {
+    if (monster->getState() != MONSTER_ATTACKING) {
+        return;
+    }
+    
+    monster->updateAttackTimer();
+    
+    switch(monster->getAttackPhase()) {
+        case ATTACK_CHARGE:
+            // Giai đoạn chuẩn bị - không cần kiểm tra va chạm
+            if (monster->getAttackTimer() >= monster->getAttackDuration() / 2) {
+                monster->setAttackPhase(ATTACK_LUNGE);
+                monster->resetAttackTimer();
+                std::cout << "Quái vật chuyển sang giai đoạn lao vào người chơi!" << std::endl;
+            }
+            break;
+            
+        case ATTACK_LUNGE:
+            {
+                // Tính toán tỷ lệ hoàn thành (0.0 đến 1.0)
+                float progress = (float)monster->getAttackTimer() / monster->getAttackDuration();
+                if (progress > 1.0f) progress = 1.0f;
+                
+                // Tính toán vị trí mới dựa trên tỷ lệ hoàn thành
+                int newPosX = monster->getStartPosX() + (int)((monster->getTargetPosX() - monster->getStartPosX()) * progress);
+                int newPosY = monster->getStartPosY() + (int)((monster->getTargetPosY() - monster->getStartPosY()) * progress);
+                
+                // Kiểm tra va chạm tại vị trí mới
+                SDL_Rect monsterRect = {
+                    newPosX + monster->getHitboxOffsetX(),
+                    newPosY + monster->getHitboxOffsetY(),
+                    monster->getHitboxWidth(),
+                    monster->getHitboxHeight()
+                };
+                
+                bool hasCollision = mCollisionMap->checkObjectWithMap(monsterRect);
+                
+                if (!hasCollision) {
+                    // Nếu không có va chạm, cập nhật vị trí
+                    monster->setPosition(newPosX, newPosY);
+                } else {
+                    // Nếu có va chạm, dừng tại vị trí hiện tại và chuyển sang giai đoạn lùi lại
+                    monster->setAttackPhase(ATTACK_RETREAT);
+                    monster->resetAttackTimer();
+                    std::cout << "Quái vật va chạm với map và chuyển sang giai đoạn lùi lại!" << std::endl;
+                    
+                    // Đổi vị trí bắt đầu và mục tiêu để lùi lại
+                    monster->setStartAndTargetPos(monster->getPosX(), monster->getPosY(), 
+                                                monster->getOriginalPosX(), monster->getOriginalPosY());
+                }
+                
+                // Khi tiến triển quá 70%, có thể gây sát thương
+                if (progress > 0.7f && !monster->hasDealtDamage()) {
+                    monster->setHasDealtDamage(true);
+                }
+                
+                // Khi hoàn thành giai đoạn lao vào, chuyển sang giai đoạn lùi lại
+                if (monster->getAttackTimer() >= monster->getAttackDuration()) {
+                    monster->setAttackPhase(ATTACK_RETREAT);
+                    monster->resetAttackTimer();
+                    std::cout << "Quái vật chuyển sang giai đoạn lùi lại!" << std::endl;
+                    
+                    // Đổi vị trí bắt đầu và mục tiêu để lùi lại
+                    monster->setStartAndTargetPos(monster->getPosX(), monster->getPosY(), 
+                                                monster->getOriginalPosX(), monster->getOriginalPosY());
+                }
+            }
+            break;
+            
+        case ATTACK_RETREAT:
+            {
+                // Tính toán tỷ lệ hoàn thành (0.0 đến 1.0)
+                float progress = (float)monster->getAttackTimer() / monster->getAttackDuration();
+                if (progress > 1.0f) progress = 1.0f;
+                
+                // Tính toán vị trí mới dựa trên tỷ lệ hoàn thành
+                int newPosX = monster->getStartPosX() + (int)((monster->getTargetPosX() - monster->getStartPosX()) * progress);
+                int newPosY = monster->getStartPosY() + (int)((monster->getTargetPosY() - monster->getStartPosY()) * progress);
+                
+                // Kiểm tra va chạm tại vị trí mới
+                SDL_Rect monsterRect = {
+                    newPosX + monster->getHitboxOffsetX(),
+                    newPosY + monster->getHitboxOffsetY(),
+                    monster->getHitboxWidth(),
+                    monster->getHitboxHeight()
+                };
+                
+                bool hasCollision = mCollisionMap->checkObjectWithMap(monsterRect);
+                
+                if (!hasCollision) {
+                    // Nếu không có va chạm, cập nhật vị trí
+                    monster->setPosition(newPosX, newPosY);
+                } else {
+                    // Nếu có va chạm, dừng tại vị trí hiện tại và chuyển sang giai đoạn cooldown
+                    monster->setAttackPhase(ATTACK_COOLDOWN);
+                    monster->resetAttackTimer();
+                    std::cout << "Quái vật va chạm với map khi lùi và chuyển sang giai đoạn nghỉ!" << std::endl;
+                }
+                
+                // Khi hoàn thành giai đoạn lùi lại, chuyển sang giai đoạn nghỉ
+                if (monster->getAttackTimer() >= monster->getAttackDuration()) {
+                    monster->setAttackPhase(ATTACK_COOLDOWN);
+                    monster->resetAttackTimer();
+                    std::cout << "Quái vật chuyển sang giai đoạn nghỉ!" << std::endl;
+                }
+            }
+            break;
+            
+        case ATTACK_COOLDOWN:
+            // Giai đoạn nghỉ - quái vật đứng yên trước khi có thể tấn công tiếp
+            // Animation sẽ hiển thị trạng thái đứng yên
+            if (monster->getAttackTimer() >= monster->getAttackCooldown()) {
+                // Chuyển về trạng thái đứng yên sau khi kết thúc cooldown
+                monster->setState(MONSTER_IDLE);
+                std::cout << "Quái vật đã sẵn sàng cho đợt tấn công tiếp theo!" << std::endl;
+            }
+            break;
+    }
+    
+    // Cập nhật frame animation cho quái vật dựa vào giai đoạn tấn công
+    monster->updateAttackAnimation();
+}
+
 void MonsterManager::render(int camX, int camY) {
     // Render tất cả quái vật
     for (auto monster : mMonsters) {
@@ -163,8 +397,11 @@ void MonsterManager::render(int camX, int camY) {
 bool MonsterManager::checkCollisionWithPlayer(SDL_Rect playerHitbox) {
     // Kiểm tra va chạm giữa người chơi và tất cả quái vật
     for (auto monster : mMonsters) {
-        // Chỉ kiểm tra va chạm với quái vật còn sống và đang tấn công
-        if (monster->getState() != MONSTER_DEAD && monster->getState() == MONSTER_ATTACKING) {
+        // Chỉ kiểm tra va chạm với quái vật còn sống và đang tấn công trong giai đoạn lao vào
+        if (monster->getState() != MONSTER_DEAD && 
+            monster->getState() == MONSTER_ATTACKING && 
+            monster->getAttackPhase() == ATTACK_LUNGE) {
+            
             if (monster->checkCollisionWithPlayer(playerHitbox)) {
                 return true;
             }

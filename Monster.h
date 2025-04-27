@@ -23,6 +23,14 @@ enum MonsterDirection {
     MONSTER_LEFT
 };
 
+// Thêm enum cho các giai đoạn tấn công
+enum MonsterAttackPhase {
+    ATTACK_CHARGE,    // Giai đoạn chuẩn bị tấn công
+    ATTACK_LUNGE,     // Giai đoạn lao vào người chơi
+    ATTACK_RETREAT,   // Giai đoạn lùi lại
+    ATTACK_COOLDOWN   // Giai đoạn nghỉ trước khi tấn công tiếp
+};
+
 class Monster {
 private:
     Texture* mSpriteSheet;
@@ -66,6 +74,21 @@ private:
     int mAttackingFrames;
     int mHurtFrames;
     int mDeadFrames;
+    
+    // Biến cho quá trình tấn công
+    MonsterAttackPhase mAttackPhase;
+    int mAttackTimer;         // Đếm thời gian trong mỗi giai đoạn tấn công
+    int mAttackDuration;      // Thời gian tối đa của mỗi giai đoạn
+    int mAttackCooldown;      // Thời gian nghỉ giữa các đợt tấn công
+    
+    // Lưu vị trí trước khi tấn công và vị trí mục tiêu
+    int mStartPosX;
+    int mStartPosY;
+    int mTargetPosX;
+    int mTargetPosY;
+    int mOriginalPosX;        // Vị trí ban đầu trước khi bắt đầu tấn công
+    int mOriginalPosY;        // Vị trí ban đầu trước khi bắt đầu tấn công
+    bool mHasDealtDamage;     // Đã gây sát thương trong lượt tấn công này chưa
     
 public:
     Monster(SDL_Renderer* renderer, MonsterType type);
@@ -117,4 +140,37 @@ public:
     
     // Phương thức vẽ thanh máu
     void renderHealthBar(int camX, int camY);
+    
+    // Các phương thức mới cho hệ thống tấn công
+    void startAttack(int targetX, int targetY);
+    void updateAttack();
+    MonsterAttackPhase getAttackPhase() const { return mAttackPhase; }
+    
+    // Các phương thức phụ trợ mới cho hệ thống tấn công
+    int getAttackTimer() const { return mAttackTimer; }
+    int getAttackDuration() const { return mAttackDuration; }
+    int getAttackCooldown() const { return mAttackCooldown; }
+    void resetAttackTimer() { mAttackTimer = 0; }
+    void updateAttackTimer() { mAttackTimer++; }
+    void setAttackPhase(MonsterAttackPhase phase) { mAttackPhase = phase; }
+    
+    int getStartPosX() const { return mStartPosX; }
+    int getStartPosY() const { return mStartPosY; }
+    int getTargetPosX() const { return mTargetPosX; }
+    int getTargetPosY() const { return mTargetPosY; }
+    int getOriginalPosX() const { return mOriginalPosX; }
+    int getOriginalPosY() const { return mOriginalPosY; }
+    
+    void setStartAndTargetPos(int startX, int startY, int targetX, int targetY) {
+        mStartPosX = startX;
+        mStartPosY = startY;
+        mTargetPosX = targetX;
+        mTargetPosY = targetY;
+    }
+    
+    bool hasDealtDamage() const { return mHasDealtDamage; }
+    void setHasDealtDamage(bool value) { mHasDealtDamage = value; }
+    
+    // Phương thức cập nhật animation tấn công
+    void updateAttackAnimation();
 };
