@@ -24,6 +24,12 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
     mHitboxWidth = 0;
     mHitboxHeight = 0;
     
+    // Khởi tạo máu
+    mMaxHealth = 100;
+    mCurrentHealth = mMaxHealth;
+    mHasBeenHit = false;
+    mHitCooldown = 0;
+    
     // Lưu loại quái vật
     mType = type;
     
@@ -35,6 +41,7 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
             mAttackingFrames = 7;
             mHurtFrames = 3;
             mDeadFrames = 5;
+            mMaxHealth = 100; // Máu của slime
             break;
         default:
             mIdleFrames = 4;
@@ -44,6 +51,8 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
             mDeadFrames = 5;
             break;
     }
+    
+    mCurrentHealth = mMaxHealth;
 }
 
 Monster::~Monster() {
@@ -97,9 +106,32 @@ bool Monster::loadMedia(std::string path) {
 }
 
 void Monster::update() {
+    // Nếu đã chết không cập nhật vị trí
+    if (mCurrentState == MONSTER_DEAD) {
+        // Chỉ cập nhật animation nếu chưa hoàn thành animation chết
+        if (!getDeathAnimationFinished()) {
+            mFrameTimer++;
+            if (mFrameTimer >= mFrameDelay) {
+                mFrameTimer = 0;
+                if (mCurrentFrame < mDeadFrames - 1) {
+                    mCurrentFrame++;
+                }
+            }
+        }
+        return;
+    }
+    
     // Cập nhật vị trí
     mPosX += mVelX;
     mPosY += mVelY;
+    
+    // Nếu đang trong trạng thái bị thương, giảm thời gian cooldown
+    if (mHasBeenHit) {
+        mHitCooldown--;
+        if (mHitCooldown <= 0) {
+            mHasBeenHit = false;
+        }
+    }
     
     // Cập nhật frame animation
     mFrameTimer++;
@@ -188,12 +220,45 @@ void Monster::render(int camX, int camY) {
         
         // Render texture
         SDL_RenderCopy(mRenderer, mSpriteSheet->getTexture(), currentClip, &renderQuad);
+        
+        // Render thanh máu (chỉ khi quái vật còn sống)
+        if (mCurrentState != MONSTER_DEAD) {
+            renderHealthBar(camX, camY);
+        }
     }
 }
 
+void Monster::renderHealthBar(int camX, int camY) {
+    // Vị trí thanh máu (ngay trên đầu quái vật)
+    int barX = mPosX - camX;
+    int barY = mPosY - camY - 10; // Dịch lên trên 10px
+    
+    // Kích thước thanh máu
+    int barWidth = mWidth * 2; // Rộng bằng quái vật
+    int barHeight = 5; // Cao 5px
+    
+    // Vẽ viền thanh máu
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255); // Màu đen
+    SDL_Rect outlineRect = {barX, barY, barWidth, barHeight};
+    SDL_RenderDrawRect(mRenderer, &outlineRect);
+    
+    // Vẽ phần nền thanh máu
+    SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, 255); // Màu đỏ
+    SDL_Rect backgroundRect = {barX + 1, barY + 1, barWidth - 2, barHeight - 2};
+    SDL_RenderFillRect(mRenderer, &backgroundRect);
+    
+    // Tính toán phần máu hiện tại
+    int healthWidth = (int)((float)(barWidth - 2) * ((float)mCurrentHealth / (float)mMaxHealth));
+    
+    // Vẽ phần máu hiện tại
+    SDL_SetRenderDrawColor(mRenderer, 0, 255, 0, 255); // Màu xanh lá
+    SDL_Rect healthRect = {barX + 1, barY + 1, healthWidth, barHeight - 2};
+    SDL_RenderFillRect(mRenderer, &healthRect);
+}
+
 void Monster::setState(MonsterState state) {
-    // Nếu đang ở trạng thái chết và đã ở frame cuối, không chuyển đổi trạng thái
-    if (mCurrentState == MONSTER_DEAD && getDeathAnimationFinished()) {
+    // Nếu đang ở trạng thái chết, không chuyển đổi trạng thái
+    if (mCurrentState == MONSTER_DEAD) {
         return;
     }
     
@@ -238,4 +303,27 @@ bool Monster::checkCollisionWithPlayer(SDL_Rect playerHitbox) {
             monsterHitbox.x + monsterHitbox.w > playerHitbox.x && 
             monsterHitbox.y < playerHitbox.y + playerHitbox.h && 
             monsterHitbox.y + monsterHitbox.h > playerHitbox.y);
+}
+
+void Monster::takeDamage(int damage) {
+    // Nếu đang trong trạng thái cooldown hoặc đã chết, không nhận thêm sát thương
+    if (mHasBeenHit || mCurrentState == MONSTER_DEAD) {
+        return;
+    }
+    
+    // Giảm máu
+    mCurrentHealth -= damage;
+    
+    // Kiểm tra nếu hết máu
+    if (mCurrentHealth <= 0) {
+        mCurrentHealth = 0;
+        setState(MONSTER_DEAD);
+    } else {
+        // Nếu còn sống, chuyển sang trạng thái bị thương
+        setState(MONSTER_HURT);
+        
+        // Thiết lập cooldown để tránh bị đánh liên tục
+        mHasBeenHit = true;
+        mHitCooldown = 30; // 30 frame (nửa giây ở 60fps)
+    }
 }

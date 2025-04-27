@@ -42,6 +42,12 @@ private:
     int mHitboxWidth;
     int mHitboxHeight;
     
+    // Thông tin về máu
+    int mMaxHealth;
+    int mCurrentHealth;
+    bool mHasBeenHit;   // Kiểm tra xem quái vật đã bị đánh gần đây chưa
+    int mHitCooldown;   // Đếm thời gian giữa các lần bị đánh
+    
     // Loại quái vật
     MonsterType mType;
     
@@ -88,4 +94,14 @@ public:
     
     // Phương thức kiểm tra va chạm với player
     bool checkCollisionWithPlayer(SDL_Rect playerHitbox);
+    
+    // Phương thức xử lý khi bị tấn công
+    void takeDamage(int damage);
+    
+    // Getter cho máu
+    int getCurrentHealth() const { return mCurrentHealth; }
+    int getMaxHealth() const { return mMaxHealth; }
+    
+    // Phương thức vẽ thanh máu
+    void renderHealthBar(int camX, int camY);
 };

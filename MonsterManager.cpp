@@ -182,8 +182,10 @@ void MonsterManager::checkAttackCollision(SDL_Rect attackHitbox) {
                              attackHitbox.y + attackHitbox.h > monsterHitbox.y);
             
             if (hasCollision) {
-                // Quái vật bị tấn công
-                monster->setState(MONSTER_HURT);
+                // Gây sát thương cho quái vật
+                monster->takeDamage(25); // Gây 25 sát thương mỗi lần tấn công
+                
+                // Dừng di chuyển khi bị tấn công
                 monster->setVelocityX(0);
                 monster->setVelocityY(0);
             }

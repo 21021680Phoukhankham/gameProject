@@ -322,10 +322,9 @@ void Game::update() {
     
     // Kiểm tra va chạm giữa người chơi và quái vật
     if (mPlayer->getState() == ATTACKING) {
-        // Nếu người chơi đang tấn công, tạo hitbox tấn công lớn hơn
+        // Tạo hitbox tấn công của người chơi, dựa vào hướng nhìn của người chơi
         SDL_Rect attackHitbox;
         
-        // Điều chỉnh hitbox tấn công theo hướng nhìn của người chơi
         if (mPlayer->getDirection() == RIGHT) {
             attackHitbox = {
                 mPlayer->getPosX() + mPlayer->getHitboxOffsetX(),
@@ -344,14 +343,6 @@ void Game::update() {
         
         // Kiểm tra va chạm tấn công với quái vật
         mMonsterManager->checkAttackCollision(attackHitbox);
-    } else {
-        // Kiểm tra nếu người chơi bị quái vật tấn công
-        if (mMonsterManager->checkCollisionWithPlayer(playerHitbox)) {
-            // Nếu người chơi va chạm với quái vật và không đang tấn công, người chơi bị thương
-            if (mPlayer->getState() != DEAD) {
-                mPlayer->setState(DEAD);
-            }
-        }
     }
     
     // Cập nhật animation và trạng thái của người chơi
