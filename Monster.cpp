@@ -21,7 +21,7 @@ Monster::Monster(SDL_Renderer* renderer, MonsterType type) {
     mWidth = 0;
     mHeight = 0;
     
-    // Khởi tạo giá trị mặc định cho hitbox
+    // Khởi tạo giá trị mặc định cho hitbox (sẽ được cập nhật sau trong loadMedia)
     mHitboxOffsetX = 0;
     mHitboxOffsetY = 0;
     mHitboxWidth = 0;
@@ -99,12 +99,23 @@ bool Monster::loadMedia(std::string path) {
     mWidth = sheetWidth / maxFrames;
     mHeight = sheetHeight / 5; // 5 hàng trạng thái
     
-    // Thiết lập kích thước hitbox mặc định
-    mHitboxWidth = mWidth;
-    mHitboxHeight = mHeight;
+    // Tính toán kích thước hitbox ở giữa frame
+    int hitboxSizeScale = 2; // Quái vật được phóng to 2 lần khi render
+    
+    // Hitbox nhỏ hơn frame gốc để phù hợp với hình dáng quái vật
+    // Chỉ mở rộng sang bên phải và xuống dưới
+    mHitboxWidth = mWidth / 2 + 20; // Mở rộng 20px sang bên phải
+    mHitboxHeight = mHeight / 2 + 5; // Mở rộng 5px xuống dưới
+    
+    // Offset để đặt hitbox ở giữa frame khi render
+    // Không dịch sang trái thêm như trước đây
+    mHitboxOffsetX = (mWidth * hitboxSizeScale - mHitboxWidth) / 2; // Không dịch sang trái nữa
+    mHitboxOffsetY = (mHeight * hitboxSizeScale - mHitboxHeight) / 2 + 5; // Dịch xuống dưới 5px
     
     std::cout << "Kích thước sprite sheet quái vật: " << sheetWidth << "x" << sheetHeight << std::endl;
     std::cout << "Kích thước mỗi frame: " << mWidth << "x" << mHeight << std::endl;
+    std::cout << "Hitbox size: " << mHitboxWidth << "x" << mHitboxHeight << std::endl;
+    std::cout << "Hitbox offset: " << mHitboxOffsetX << "," << mHitboxOffsetY << std::endl;
     
     // Tạo các clip cho từng frame trong sprite sheet
     for (int r = 0; r < 5; r++) {

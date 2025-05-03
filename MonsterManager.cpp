@@ -59,9 +59,8 @@ bool MonsterManager::loadMonsterMap(std::string path) {
                 int posY = row * mTileHeight;
                 monster->setPosition(posX, posY);
                 
-                // Thiết lập hitbox cho quái vật
-                monster->setHitboxOffset(mTileWidth / 4, mTileHeight / 4);
-                monster->setHitboxSize(mTileWidth / 2, mTileHeight / 2);
+                // Không cần thiết lập hitbox vì đã được thiết lập trong loadMedia
+                // và đã được tính toán để nằm ở giữa frame
                 
                 // Thêm quái vật vào danh sách
                 mMonsters.push_back(monster);
@@ -150,8 +149,8 @@ void MonsterManager::update(SDL_Rect playerHitbox) {
                 
                 // Tạo hitbox tạm thời để kiểm tra va chạm tại vị trí tấn công
                 SDL_Rect attackHitbox = {
-                    targetX + monster->getHitboxOffsetX() - monster->getHitboxWidth() / 2,
-                    targetY + monster->getHitboxOffsetY() - monster->getHitboxHeight() / 2,
+                    targetX - monster->getHitboxWidth() / 2,
+                    targetY - monster->getHitboxHeight() / 2,
                     monster->getHitboxWidth(),
                     monster->getHitboxHeight()
                 };
